@@ -1,0 +1,530 @@
+// CTE PracTrack — Prisma schema
+// Source of truth: PRD.md §8 (data model) and CLAUDE.md (cross-cutting rules).
+// Every entity here is scoped to a shifting where the PRD says so; thresholds
+// and the evaluation instrument live in config tables, never in code.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  SUPERVISOR
+  COOPERATING_TEACHER
+  STUDENT_INTERN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+enum SchoolType {
+  SECONDARY
+  ELEMENTARY
+}
+
+enum ShiftingName {
+  FIRST
+  SECOND
+}
+
+enum ShiftingStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  INCOMPLETE
+  LATE
+  EXCUSED
+}
+
+enum AttendancePunchSource {
+  DEVICE
+  MANUAL_SUPERVISOR
+}
+
+enum SessionType {
+  REGULAR
+  FINAL_DEMO
+}
+
+enum SessionStatus {
+  ASSIGNED
+  EVALUATED
+}
+
+enum SessionDocumentType {
+  LESSON_PLAN
+  PROGRESS_REPORT
+}
+
+enum EndOfTermSubmissionType {
+  NARRATIVE_REPORT
+  TEACHING_PORTFOLIO
+}
+
+enum AlertType {
+  ABSENCE_EARLY_WARNING
+  CONSECUTIVE_ABSENCES
+  DROP_ELIGIBLE
+  BEHIND_PACE
+  EVALUATION_PENDING
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AlertStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum NotificationType {
+  SESSION_ASSIGNED
+  SESSION_EVALUATED
+  ATTENDANCE_THRESHOLD_WARNING
+  ALERT_RAISED
+  EVALUATION_AWAITING
+  CT_REGISTRATION_APPROVED
+  DOCUMENT_REMINDER
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Identity & accounts
+// ─────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  role         Role
+  status       UserStatus @default(ACTIVE)
+  name         String
+  phone        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime? // soft delete — accounts with history are deactivated, never cascaded
+
+  supervisorProfile SupervisorProfile?
+  ctProfile         CooperatingTeacherProfile?
+  internProfile     InternProfile?
+
+  // Reverse relations for actions this user performed as staff.
+  createdInterns           InternProfile[]             @relation("InternCreatedBy")
+  approvedCts              CooperatingTeacherProfile[] @relation("CtApprovedBy")
+  excusedAttendance        AttendanceRecord[]          @relation("AttendanceExcusedBy")
+  submittedEvaluations     Evaluation[]                @relation("EvaluationSubmittedBy")
+  resolvedAlerts           Alert[]                     @relation("AlertResolvedBy")
+  notifications            Notification[]
+  pushSubscriptions        PushSubscription[]
+  auditLogEntries          AuditLog[]                  @relation("AuditActor")
+  supervisorAssignedSchool SchoolSupervisorHistory[]   @relation("SchoolSupervisorAssignedBy")
+
+  @@index([role])
+  @@index([status])
+}
+
+model SupervisorProfile {
+  id         String  @id @default(cuid())
+  userId     String  @unique
+  user       User    @relation(fields: [userId], references: [id])
+  department String
+  schoolId   String? @unique
+  school     School? @relation(fields: [schoolId], references: [id])
+}
+
+model CooperatingTeacherProfile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id])
+  schoolId         String
+  school           School    @relation(fields: [schoolId], references: [id])
+  approvedByUserId String?
+  approvedBy       User?     @relation("CtApprovedBy", fields: [approvedByUserId], references: [id])
+  approvedAt       DateTime?
+
+  assignedInterns InternProfile[]   @relation("InternAssignedCt")
+  sessions        TeachingSession[]
+
+  @@index([schoolId])
+}
+
+model InternProfile {
+  id                   String                     @id @default(cuid())
+  userId               String                     @unique
+  user                 User                       @relation(fields: [userId], references: [id])
+  schoolNumber         String // school-issued ID number, e.g. "2021-0045"
+  course               String
+  yearLevel            String
+  assignedSchoolId     String
+  assignedSchool       School                     @relation(fields: [assignedSchoolId], references: [id])
+  cooperatingTeacherId String?
+  cooperatingTeacher   CooperatingTeacherProfile? @relation("InternAssignedCt", fields: [cooperatingTeacherId], references: [id])
+  createdByUserId      String
+  createdByUser        User                       @relation("InternCreatedBy", fields: [createdByUserId], references: [id])
+
+  attendanceRecords    AttendanceRecord[]
+  teachingSessions     TeachingSession[]
+  endOfTermSubmissions EndOfTermSubmission[]
+  alerts               Alert[]
+
+  @@unique([assignedSchoolId, schoolNumber])
+  @@index([assignedSchoolId])
+  @@index([cooperatingTeacherId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Schools
+// ─────────────────────────────────────────────────────────────────────────
+
+model School {
+  id                   String     @id @default(cuid())
+  name                 String
+  type                 SchoolType
+  municipality         String
+  latitude             Decimal    @db.Decimal(10, 7)
+  longitude            Decimal    @db.Decimal(10, 7)
+  geofenceRadiusMeters Int        @default(75)
+  timeInCutoff         String? // "HH:mm" 24h Asia/Manila; null → global CheckInConfig default
+  timeOutStart         String? // "HH:mm" 24h Asia/Manila; null → global CheckInConfig default
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  deletedAt            DateTime?
+
+  supervisorProfile SupervisorProfile?
+  supervisorHistory SchoolSupervisorHistory[]
+  cts               CooperatingTeacherProfile[]
+  interns           InternProfile[]
+
+  @@index([type])
+}
+
+// Logged history every time a school's assigned supervisor changes (PRD §6.2: reassignment is logged).
+model SchoolSupervisorHistory {
+  id               String    @id @default(cuid())
+  schoolId         String
+  school           School    @relation(fields: [schoolId], references: [id])
+  supervisorUserId String?
+  assignedAt       DateTime  @default(now())
+  unassignedAt     DateTime?
+  assignedByUserId String
+  assignedByUser   User      @relation("SchoolSupervisorAssignedBy", fields: [assignedByUserId], references: [id])
+
+  @@index([schoolId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Academic period model
+// ─────────────────────────────────────────────────────────────────────────
+
+model AcademicYear {
+  id         String     @id @default(cuid())
+  label      String     @unique // e.g. "2026-2027"
+  isArchived Boolean    @default(false)
+  semesters  Semester[]
+}
+
+model Semester {
+  id             String       @id @default(cuid())
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  name           String // e.g. "1st Semester"
+  startDate      DateTime
+  endDate        DateTime
+  shiftings      Shifting[]
+
+  @@index([academicYearId])
+}
+
+model Shifting {
+  id                       String         @id @default(cuid())
+  semesterId               String
+  semester                 Semester       @relation(fields: [semesterId], references: [id])
+  name                     ShiftingName
+  startDate                DateTime
+  endDate                  DateTime
+  requiredTeachingSessions Int            @default(15)
+  requiredFinalDemos       Int            @default(1)
+  status                   ShiftingStatus @default(UPCOMING)
+  activatedAt              DateTime?
+  completedAt              DateTime?
+
+  attendanceRecords    AttendanceRecord[]
+  teachingSessions     TeachingSession[]
+  endOfTermSubmissions EndOfTermSubmission[]
+  alerts               Alert[]
+
+  @@unique([semesterId, name])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Attendance
+// ─────────────────────────────────────────────────────────────────────────
+
+model AttendanceRecord {
+  id              String                 @id @default(cuid())
+  internId        String
+  intern          InternProfile          @relation(fields: [internId], references: [id])
+  shiftingId      String
+  shifting        Shifting               @relation(fields: [shiftingId], references: [id])
+  date            DateTime               @db.Date // Asia/Manila calendar date this row represents
+  timeIn          DateTime?
+  timeOut         DateTime?
+  timeInLat       Decimal?               @db.Decimal(10, 7)
+  timeInLng       Decimal?               @db.Decimal(10, 7)
+  timeOutLat      Decimal?               @db.Decimal(10, 7)
+  timeOutLng      Decimal?               @db.Decimal(10, 7)
+  timeInSource    AttendancePunchSource?
+  timeOutSource   AttendancePunchSource?
+  status          AttendanceStatus // derived server-side, never accepted from a client payload
+  excuseReason    String?
+  excusedByUserId String?
+  excusedByUser   User?                  @relation("AttendanceExcusedBy", fields: [excusedByUserId], references: [id])
+  excusedAt       DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@unique([internId, date])
+  @@index([shiftingId])
+  @@index([internId, shiftingId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Teaching sessions & evaluation
+// ─────────────────────────────────────────────────────────────────────────
+
+model TeachingSession {
+  id                   String                    @id @default(cuid())
+  internId             String
+  intern               InternProfile             @relation(fields: [internId], references: [id])
+  shiftingId           String
+  shifting             Shifting                  @relation(fields: [shiftingId], references: [id])
+  cooperatingTeacherId String
+  cooperatingTeacher   CooperatingTeacherProfile @relation(fields: [cooperatingTeacherId], references: [id])
+  sessionNumber        Int // sequence within the intern's shifting, assigned server-side
+  date                 DateTime                  @db.Date
+  subject              String
+  gradeSection         String
+  topic                String
+  type                 SessionType               @default(REGULAR)
+  status               SessionStatus             @default(ASSIGNED)
+  createdAt            DateTime                  @default(now())
+
+  evaluation Evaluation?
+  documents  SessionDocument[]
+
+  @@unique([internId, shiftingId, sessionNumber])
+  @@index([shiftingId])
+  @@index([cooperatingTeacherId])
+  @@index([internId, shiftingId])
+}
+
+// Seeded config: the six weighted criteria. Weights must total 100.
+model EvaluationCriterion {
+  id            String  @id @default(cuid())
+  order         Int
+  name          String
+  weightPercent Decimal @db.Decimal(5, 2)
+  isActive      Boolean @default(true)
+
+  items EvaluationItem[]
+
+  @@unique([order])
+}
+
+model EvaluationItem {
+  id          String              @id @default(cuid())
+  criterionId String
+  criterion   EvaluationCriterion @relation(fields: [criterionId], references: [id])
+  order       Int
+  text        String
+  isActive    Boolean             @default(true)
+
+  scores EvaluationItemScore[]
+
+  @@unique([criterionId, order])
+}
+
+// Insert-only. Submission stamps identity + timestamp; there is no update path.
+model Evaluation {
+  id                  String          @id @default(cuid())
+  sessionId           String          @unique
+  session             TeachingSession @relation(fields: [sessionId], references: [id])
+  submittedByUserId   String
+  submittedByUser     User            @relation("EvaluationSubmittedBy", fields: [submittedByUserId], references: [id])
+  submittedAt         DateTime        @default(now())
+  overallScore        Decimal         @db.Decimal(5, 2) // percentage, computed server-side
+  commendable         String?
+  areasForImprovement String?
+
+  itemScores EvaluationItemScore[]
+}
+
+model EvaluationItemScore {
+  id           String         @id @default(cuid())
+  evaluationId String
+  evaluation   Evaluation     @relation(fields: [evaluationId], references: [id])
+  itemId       String
+  item         EvaluationItem @relation(fields: [itemId], references: [id])
+  rating       Int // 1-5
+
+  @@unique([evaluationId, itemId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Documents
+// ─────────────────────────────────────────────────────────────────────────
+
+model SessionDocument {
+  id                     String              @id @default(cuid())
+  sessionId              String
+  session                TeachingSession     @relation(fields: [sessionId], references: [id])
+  type                   SessionDocumentType
+  storageKey             String // Supabase Storage object key — never the file bytes
+  originalFilename       String
+  mimeType               String
+  sizeBytes              Int
+  uploadedAt             DateTime            @default(now())
+  supersededByDocumentId String?             @unique
+  supersededByDocument   SessionDocument?    @relation("DocumentSupersession", fields: [supersededByDocumentId], references: [id])
+  supersedes             SessionDocument?    @relation("DocumentSupersession")
+
+  @@index([sessionId, type])
+}
+
+model EndOfTermSubmission {
+  id               String                  @id @default(cuid())
+  internId         String
+  intern           InternProfile           @relation(fields: [internId], references: [id])
+  shiftingId       String
+  shifting         Shifting                @relation(fields: [shiftingId], references: [id])
+  type             EndOfTermSubmissionType
+  dueDate          DateTime                @db.Date
+  storageKey       String?
+  originalFilename String?
+  mimeType         String?
+  sizeBytes        Int?
+  uploadedAt       DateTime?
+
+  @@unique([internId, shiftingId, type])
+  @@index([shiftingId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// At-risk detection & alerts
+// ─────────────────────────────────────────────────────────────────────────
+
+model Alert {
+  id               String        @id @default(cuid())
+  internId         String
+  intern           InternProfile @relation(fields: [internId], references: [id])
+  shiftingId       String
+  shifting         Shifting      @relation(fields: [shiftingId], references: [id])
+  type             AlertType
+  severity         AlertSeverity
+  detail           String // human-readable, interpolated with the config value at raise time
+  raisedAt         DateTime      @default(now())
+  status           AlertStatus   @default(ACTIVE)
+  resolvedByUserId String?
+  resolvedByUser   User?         @relation("AlertResolvedBy", fields: [resolvedByUserId], references: [id])
+  resolvedAt       DateTime?
+  resolutionNote   String?
+
+  // One active alert of a given type per intern per shifting — re-evaluation updates
+  // detail/severity on the existing row instead of duplicating it.
+  @@unique([internId, shiftingId, type, status])
+  @@index([shiftingId, status])
+  @@index([internId, shiftingId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Config singletons — thresholds and cut-offs are data, never constants
+// ─────────────────────────────────────────────────────────────────────────
+
+model FlaggingRuleConfig {
+  id                    String   @id @default(cuid())
+  absenceEarlyWarning   Int      @default(3)
+  consecutiveAbsences   Int      @default(3)
+  dropEligibleAbove     Int      @default(12)
+  evaluationPendingDays Int      @default(7)
+  behindPaceTolerance   Decimal  @default(0) @db.Decimal(5, 2)
+  updatedAt             DateTime @updatedAt
+}
+
+model CheckInConfig {
+  id           String   @id @default(cuid())
+  timeInCutoff String   @default("07:30") // "HH:mm" 24h Asia/Manila
+  timeOutStart String   @default("15:00") // "HH:mm" 24h Asia/Manila
+  updatedAt    DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Notifications
+// ─────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Audit trail — written from the service layer, readable by ADMIN only
+// ─────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  actorUser   User     @relation("AuditActor", fields: [actorUserId], references: [id])
+  actorRole   Role
+  action      String // e.g. "ATTENDANCE_TIME_IN", "EVALUATION_SUBMIT", "SHIFTING_ACTIVATE"
+  entityType  String
+  entityId    String
+  diff        Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@index([createdAt])
+}
