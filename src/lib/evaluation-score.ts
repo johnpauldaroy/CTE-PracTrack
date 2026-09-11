@@ -20,7 +20,6 @@ export function computeOverallScore(
   criteria: CriterionWithItems[],
   ratings: Map<string, number>,
 ): number {
-  let totalWeight = 0;
   let weightedSum = 0;
 
   for (const criterion of criteria) {
@@ -38,7 +37,6 @@ export function computeOverallScore(
     const criterionMean = itemSum / criterion.itemIds.length; // 1-5
     const criterionPercent = (criterionMean / 5) * criterion.weightPercent;
     weightedSum += criterionPercent;
-    totalWeight += criterion.weightPercent;
   }
 
   return weightedSum;

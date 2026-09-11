@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,16 +20,16 @@ interface DtrResponse {
 export default function InternAttendancePage() {
   const { data: shiftingsData } = useSWR<{ shiftings: ShiftingOption[] }>("/api/intern/shiftings", fetcher);
   const [selectedShiftingId, setSelectedShiftingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (shiftingsData?.shiftings.length && !selectedShiftingId) {
-      const active = shiftingsData.shiftings.find((s) => s.status === "ACTIVE");
-      setSelectedShiftingId((active ?? shiftingsData.shiftings[0]).id);
-    }
-  }, [shiftingsData, selectedShiftingId]);
+  const defaultShifting =
+    shiftingsData?.shiftings.find((shifting) => shifting.status === "ACTIVE") ??
+    shiftingsData?.shiftings[0];
+  const effectiveShiftingId =
+    selectedShiftingId && shiftingsData?.shiftings.some((shifting) => shifting.id === selectedShiftingId)
+      ? selectedShiftingId
+      : (defaultShifting?.id ?? null);
 
   const { data: dtrData, isLoading } = useSWR<DtrResponse>(
-    selectedShiftingId ? `/api/intern/dtr?shiftingId=${selectedShiftingId}` : null,
+    effectiveShiftingId ? `/api/intern/dtr?shiftingId=${effectiveShiftingId}` : null,
     fetcher,
   );
 
@@ -45,7 +45,7 @@ export default function InternAttendancePage() {
       {shiftingsData && (
         <ShiftingTabs
           shiftings={shiftingsData.shiftings}
-          selectedId={selectedShiftingId}
+          selectedId={effectiveShiftingId}
           onSelect={setSelectedShiftingId}
         />
       )}

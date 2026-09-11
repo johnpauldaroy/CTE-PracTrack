@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,27 +25,27 @@ export function InternDtrTab({ internId }: { internId: string }) {
   const [excusingDate, setExcusingDate] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (shiftingsData?.shiftings.length && !selectedShiftingId) {
-      const active = shiftingsData.shiftings.find((s) => s.status === "ACTIVE");
-      setSelectedShiftingId((active ?? shiftingsData.shiftings[0]).id);
-    }
-  }, [shiftingsData, selectedShiftingId]);
+  const defaultShifting =
+    shiftingsData?.shiftings.find((shifting) => shifting.status === "ACTIVE") ??
+    shiftingsData?.shiftings[0];
+  const effectiveShiftingId =
+    selectedShiftingId && shiftingsData?.shiftings.some((shifting) => shifting.id === selectedShiftingId)
+      ? selectedShiftingId
+      : (defaultShifting?.id ?? null);
 
   const { data, isLoading, mutate } = useSWR<DtrResponse>(
-    selectedShiftingId ? `/api/interns/${internId}/dtr?shiftingId=${selectedShiftingId}` : null,
+    effectiveShiftingId ? `/api/interns/${internId}/dtr?shiftingId=${effectiveShiftingId}` : null,
     fetcher,
   );
 
   async function handleExcuse(date: string) {
-    if (!reason.trim() || !selectedShiftingId) return;
+    if (!reason.trim() || !effectiveShiftingId) return;
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/attendance/excuse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ internId, shiftingId: selectedShiftingId, date, reason }),
+        body: JSON.stringify({ internId, shiftingId: effectiveShiftingId, date, reason }),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -64,7 +64,7 @@ export function InternDtrTab({ internId }: { internId: string }) {
   return (
     <div className="flex flex-col gap-4">
       {shiftingsData && (
-        <ShiftingTabs shiftings={shiftingsData.shiftings} selectedId={selectedShiftingId} onSelect={setSelectedShiftingId} />
+        <ShiftingTabs shiftings={shiftingsData.shiftings} selectedId={effectiveShiftingId} onSelect={setSelectedShiftingId} />
       )}
 
       {isLoading || !data ? (

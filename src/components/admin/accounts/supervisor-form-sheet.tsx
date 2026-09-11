@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
@@ -35,13 +35,6 @@ export function SupervisorFormSheet({
   onSaved: () => void;
 }) {
   const isEdit = mode?.mode === "edit";
-  const { data: supervisorsData } = useSWR<{ supervisors: SupervisorDetail[] }>(
-    isEdit ? "/api/accounts/supervisors" : null,
-    fetcher,
-  );
-  const { data: schoolsData } = useSWR<{ schools: SchoolOption[] }>("/api/schools", fetcher);
-  const editing = isEdit ? supervisorsData?.supervisors.find((s) => s.id === mode.id) : undefined;
-
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
@@ -49,22 +42,35 @@ export function SupervisorFormSheet({
   const [initialPassword, setInitialPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  useSWR<{ supervisors: SupervisorDetail[] }>(
+    isEdit ? "/api/accounts/supervisors" : null,
+    fetcher,
+    {
+      onSuccess: ({ supervisors }) => {
+        if (mode?.mode !== "edit") return;
+        const editing = supervisors.find((supervisor) => supervisor.id === mode.id);
+        if (!editing) return;
+        setName(editing.user.name);
+        setEmail(editing.user.email);
+        setDepartment(editing.department);
+        setSchoolId(editing.schoolId ?? "");
+      },
+      revalidateOnFocus: false,
+    },
+  );
+  const { data: schoolsData } = useSWR<{ schools: SchoolOption[] }>("/api/schools", fetcher);
 
-  useEffect(() => {
-    if (mode?.mode === "add") {
+  function handleOpenChange(open: boolean) {
+    if (!open) {
       setName("");
       setEmail("");
       setDepartment("");
       setSchoolId("");
       setInitialPassword("");
       setFieldErrors({});
-    } else if (editing) {
-      setName(editing.user.name);
-      setEmail(editing.user.email);
-      setDepartment(editing.department);
-      setSchoolId(editing.schoolId ?? "");
     }
-  }, [mode, editing]);
+    onOpenChange(open);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -90,7 +96,7 @@ export function SupervisorFormSheet({
         return;
       }
       toast.success(isEdit ? "Supervisor updated." : "Supervisor added.");
-      onOpenChange(false);
+      handleOpenChange(false);
       onSaved();
     } finally {
       setIsSubmitting(false);
@@ -98,7 +104,7 @@ export function SupervisorFormSheet({
   }
 
   return (
-    <Sheet open={!!mode} onOpenChange={onOpenChange}>
+    <Sheet open={!!mode} onOpenChange={handleOpenChange}>
       <SheetContent className="overflow-y-auto sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{isEdit ? "Edit Supervisor" : "Add Supervisor"}</SheetTitle>

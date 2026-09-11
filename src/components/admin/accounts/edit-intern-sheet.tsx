@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
@@ -33,12 +33,6 @@ export function EditInternSheet({
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
-  const { data } = useSWR<{ intern: InternDetail }>(
-    internId ? `/api/accounts/interns/${internId}` : null,
-    fetcher,
-  );
-  const { data: schoolsData } = useSWR<{ schools: SchoolOption[] }>("/api/schools", fetcher);
-
   const [name, setName] = useState("");
   const [schoolNumber, setSchoolNumber] = useState("");
   const [course, setCourse] = useState("");
@@ -46,16 +40,21 @@ export function EditInternSheet({
   const [assignedSchoolId, setAssignedSchoolId] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (data?.intern) {
-      setName(data.intern.user.name);
-      setSchoolNumber(data.intern.schoolNumber);
-      setCourse(data.intern.course);
-      setEmail(data.intern.user.email);
-      setAssignedSchoolId(data.intern.assignedSchool.id);
-    }
-  }, [data]);
+  useSWR<{ intern: InternDetail }>(
+    internId ? `/api/accounts/interns/${internId}` : null,
+    fetcher,
+    {
+      onSuccess: ({ intern }) => {
+        setName(intern.user.name);
+        setSchoolNumber(intern.schoolNumber);
+        setCourse(intern.course);
+        setEmail(intern.user.email);
+        setAssignedSchoolId(intern.assignedSchool.id);
+      },
+      revalidateOnFocus: false,
+    },
+  );
+  const { data: schoolsData } = useSWR<{ schools: SchoolOption[] }>("/api/schools", fetcher);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Clock } from "lucide-react";
@@ -20,16 +20,21 @@ interface CheckInConfig {
 export function CheckInSettingsTab() {
   const { data, isLoading, mutate } = useSWR<{ config: CheckInConfig }>("/api/config/check-in", fetcher);
 
-  const [timeInCutoff, setTimeInCutoff] = useState("07:30");
-  const [timeOutStart, setTimeOutStart] = useState("15:00");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  if (isLoading || !data?.config) return <Skeleton className="h-72 w-full max-w-md" />;
 
-  useEffect(() => {
-    if (data?.config) {
-      setTimeInCutoff(data.config.timeInCutoff);
-      setTimeOutStart(data.config.timeOutStart);
-    }
-  }, [data]);
+  return (
+    <CheckInSettingsForm
+      key={`${data.config.timeInCutoff}:${data.config.timeOutStart}`}
+      config={data.config}
+      onSaved={() => void mutate()}
+    />
+  );
+}
+
+function CheckInSettingsForm({ config, onSaved }: { config: CheckInConfig; onSaved: () => void }) {
+  const [timeInCutoff, setTimeInCutoff] = useState(config.timeInCutoff);
+  const [timeOutStart, setTimeOutStart] = useState(config.timeOutStart);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,13 +51,11 @@ export function CheckInSettingsTab() {
         return;
       }
       toast.success("Check-in settings updated.");
-      mutate();
+      onSaved();
     } finally {
       setIsSubmitting(false);
     }
   }
-
-  if (isLoading) return <Skeleton className="h-72 w-full max-w-md" />;
 
   return (
     <Card className="max-w-md">

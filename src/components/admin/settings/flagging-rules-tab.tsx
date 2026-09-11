@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,22 +25,24 @@ export function FlaggingRulesTab() {
     fetcher,
   );
 
-  const [absenceEarlyWarning, setAbsenceEarlyWarning] = useState(3);
-  const [consecutiveAbsences, setConsecutiveAbsences] = useState(3);
-  const [dropEligibleAbove, setDropEligibleAbove] = useState(12);
-  const [evaluationPendingDays, setEvaluationPendingDays] = useState(7);
-  const [behindPaceTolerance, setBehindPaceTolerance] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  if (isLoading || !data?.config) return <Skeleton className="h-96 w-full max-w-md" />;
 
-  useEffect(() => {
-    if (data?.config) {
-      setAbsenceEarlyWarning(data.config.absenceEarlyWarning);
-      setConsecutiveAbsences(data.config.consecutiveAbsences);
-      setDropEligibleAbove(data.config.dropEligibleAbove);
-      setEvaluationPendingDays(data.config.evaluationPendingDays);
-      setBehindPaceTolerance(Number(data.config.behindPaceTolerance));
-    }
-  }, [data]);
+  return (
+    <FlaggingRulesForm
+      key={JSON.stringify(data.config)}
+      config={data.config}
+      onSaved={() => void mutate()}
+    />
+  );
+}
+
+function FlaggingRulesForm({ config, onSaved }: { config: FlaggingRuleConfig; onSaved: () => void }) {
+  const [absenceEarlyWarning, setAbsenceEarlyWarning] = useState(config.absenceEarlyWarning);
+  const [consecutiveAbsences, setConsecutiveAbsences] = useState(config.consecutiveAbsences);
+  const [dropEligibleAbove, setDropEligibleAbove] = useState(config.dropEligibleAbove);
+  const [evaluationPendingDays, setEvaluationPendingDays] = useState(config.evaluationPendingDays);
+  const [behindPaceTolerance, setBehindPaceTolerance] = useState(Number(config.behindPaceTolerance));
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,13 +65,11 @@ export function FlaggingRulesTab() {
         return;
       }
       toast.success("Flagging rules updated.");
-      mutate();
+      onSaved();
     } finally {
       setIsSubmitting(false);
     }
   }
-
-  if (isLoading) return <Skeleton className="h-96 w-full max-w-md" />;
 
   return (
     <Card className="max-w-md">

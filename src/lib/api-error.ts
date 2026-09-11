@@ -21,11 +21,9 @@ export function toApiErrorResponse(error: unknown): NextResponse {
     return NextResponse.json({ error: error.message }, { status: 403 });
   }
   if (error instanceof Error) {
-    // eslint-disable-next-line no-console
     console.error(error);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
-  // eslint-disable-next-line no-console
   console.error(error);
   return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
 }

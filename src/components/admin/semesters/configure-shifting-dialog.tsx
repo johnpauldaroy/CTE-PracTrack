@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -21,24 +21,46 @@ export function ConfigureShiftingDialog({
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [requiredTeachingSessions, setRequiredTeachingSessions] = useState(15);
-  const [requiredFinalDemos, setRequiredFinalDemos] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  return (
+    <Dialog open={!!shifting} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Configure Shifting</DialogTitle>
+        </DialogHeader>
 
-  useEffect(() => {
-    if (shifting) {
-      setStartDate(toDateInputValue(shifting.startDate));
-      setEndDate(toDateInputValue(shifting.endDate));
-      setRequiredTeachingSessions(shifting.requiredTeachingSessions);
-      setRequiredFinalDemos(shifting.requiredFinalDemos);
-    }
-  }, [shifting]);
+        {shifting && (
+          <ConfigureShiftingForm
+            key={shifting.id}
+            shifting={shifting}
+            onCancel={() => onOpenChange(false)}
+            onSaved={() => {
+              onOpenChange(false);
+              onSaved();
+            }}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ConfigureShiftingForm({
+  shifting,
+  onCancel,
+  onSaved,
+}: {
+  shifting: ShiftingData;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const [startDate, setStartDate] = useState(toDateInputValue(shifting.startDate));
+  const [endDate, setEndDate] = useState(toDateInputValue(shifting.endDate));
+  const [requiredTeachingSessions, setRequiredTeachingSessions] = useState(shifting.requiredTeachingSessions);
+  const [requiredFinalDemos, setRequiredFinalDemos] = useState(shifting.requiredFinalDemos);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!shifting) return;
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/shiftings/${shifting.id}/configure`, {
@@ -52,7 +74,6 @@ export function ConfigureShiftingDialog({
         return;
       }
       toast.success("Shifting updated.");
-      onOpenChange(false);
       onSaved();
     } finally {
       setIsSubmitting(false);
@@ -60,13 +81,7 @@ export function ConfigureShiftingDialog({
   }
 
   return (
-    <Dialog open={!!shifting} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Configure Shifting</DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <Label htmlFor="cs-start">Start Date</Label>
@@ -103,15 +118,13 @@ export function ConfigureShiftingDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="ghost" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    </form>
   );
 }
