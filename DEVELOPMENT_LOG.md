@@ -107,3 +107,21 @@ Append-only. One entry per work session, most recent first.
 **Still blocked on:** Supabase DB connection string(s) + service role key.
 
 **Next:** Geofenced attendance (step 9) — the load-bearing thesis feature. Time-in/time-out endpoints with server-side haversine + cutoff derivation, DTR query, supervisor excuse marking, intern attendance UI. After that, likely a quick pass on Settings (Flagging Rules + Check-in config screens) since the resolvers already exist and just need a UI, before tackling sessions/evaluation.
+
+---
+
+## 2026-09-11 (cont'd) — Settings module + School check-in override UI
+
+**Did:**
+- Added write functions (`updateFlaggingRuleConfig`, `updateGlobalCheckInConfig`) to the existing `check-in-config.ts` resolver module rather than creating a parallel config file, keeping one canonical place for config reads+writes. Both audit-log before/after and are admin-only.
+- `services/account-security-service.ts`: self-service `changeOwnPassword`, verifies the current password with bcrypt before allowing a change, audit-logged.
+- API routes: `/api/config/flagging-rules`, `/api/config/check-in`, `/api/me/change-password`.
+- Admin UI at `/settings`: My Account (avatar + Change Password), Flagging Rules, Check-in — matching UI_FLOW_SPEC.md §2.12's copy closely. **Deliberately went beyond the mockup** on Flagging Rules: the mockup only shows 3 of the 5 rules PRD §6.8 defines (missing Behind-on-pace tolerance and CT-evaluation-pending-days), which UI_FLOW_SPEC.md §7 item 3 already flagged as a mockup gap, not an intentional scope cut — exposed all 5 with an inline note explaining why the extra 2 fields are there.
+- Wired the School Overview tab's check-in card (previously read-only display) into an actual Edit form using the `/api/schools/[id]/check-in-override` endpoint that already existed from the Schools module — this was a genuine gap (an endpoint with no UI) rather than new backend work.
+- `tsc --noEmit` and `npm run build` both clean (34 routes now).
+
+**Deliberately not built yet:** the admin Dashboard (`/dashboard`) — its stat cards (present/absent/incomplete today) and Requiring Attention list both need real attendance and alert data, neither of which exists yet. Building it now would mean either fake numbers or a page that's permanently empty; MASTER_PROMPT.md's own build order puts dashboards (step 13) after attendance/sessions/alerts (steps 9-12) for exactly this reason, so following that rather than building a shell now.
+
+**Still blocked on:** Supabase DB connection string(s) + service role key.
+
+**Next:** Geofenced attendance (step 9) — the load-bearing thesis feature and the biggest remaining piece of backend work. Time-in/time-out endpoints with server-side haversine + cutoff derivation, status computation, the DTR query, supervisor excuse marking, and the intern attendance UI, tested against the documented edge cases (just inside/outside radius, punch after cutoff, time-in with no time-out, double punch, punch outside the active shifting's date range).

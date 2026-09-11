@@ -6,6 +6,9 @@ import { MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { SchoolDetailData } from "@/components/admin/schools/school-detail";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -58,6 +61,36 @@ export function SchoolOverviewTab({
 
   const effectiveTimeIn = school.timeInCutoff ?? "using global default";
   const effectiveTimeOut = school.timeOutStart ?? "using global default";
+
+  const [isEditingCheckIn, setIsEditingCheckIn] = useState(false);
+  const [overrideTimeIn, setOverrideTimeIn] = useState(school.timeInCutoff ?? "");
+  const [overrideTimeOut, setOverrideTimeOut] = useState(school.timeOutStart ?? "");
+  const [isSavingCheckIn, setIsSavingCheckIn] = useState(false);
+
+  async function handleSaveCheckInOverride(e: React.FormEvent) {
+    e.preventDefault();
+    setIsSavingCheckIn(true);
+    try {
+      const res = await fetch(`/api/schools/${school.id}/check-in-override`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          timeInCutoff: overrideTimeIn || null,
+          timeOutStart: overrideTimeOut || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not save check-in override.");
+        return;
+      }
+      toast.success("Check-in settings updated.");
+      setIsEditingCheckIn(false);
+      onChanged();
+    } finally {
+      setIsSavingCheckIn(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -115,22 +148,63 @@ export function SchoolOverviewTab({
       </Card>
 
       <Card>
-        <CardContent className="flex flex-col gap-2 p-5">
-          <h3 className="font-semibold">Check-in Settings</h3>
-          <p className="text-sm text-muted-foreground">
-            Time In cut-off:{" "}
-            <span className={school.timeInCutoff ? "text-foreground font-medium" : ""}>
-              {effectiveTimeIn}
-            </span>
-            {!school.timeInCutoff && " (using global default)"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Time Out start:{" "}
-            <span className={school.timeOutStart ? "text-foreground font-medium" : ""}>
-              {effectiveTimeOut}
-            </span>
-            {!school.timeOutStart && " (using global default)"}
-          </p>
+        <CardContent className="flex flex-col gap-3 p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Check-in Settings</h3>
+            {!isEditingCheckIn && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditingCheckIn(true)}>
+                Edit
+              </Button>
+            )}
+          </div>
+
+          {!isEditingCheckIn ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Time In cut-off:{" "}
+                <span className={school.timeInCutoff ? "text-foreground font-medium" : ""}>
+                  {effectiveTimeIn}
+                </span>
+                {!school.timeInCutoff && " (using global default)"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Time Out start:{" "}
+                <span className={school.timeOutStart ? "text-foreground font-medium" : ""}>
+                  {effectiveTimeOut}
+                </span>
+                {!school.timeOutStart && " (using global default)"}
+              </p>
+            </>
+          ) : (
+            <form onSubmit={handleSaveCheckInOverride} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="override-in">Time In cut-off (leave blank to use global default)</Label>
+                <Input
+                  id="override-in"
+                  type="time"
+                  value={overrideTimeIn}
+                  onChange={(e) => setOverrideTimeIn(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="override-out">Time Out start (leave blank to use global default)</Label>
+                <Input
+                  id="override-out"
+                  type="time"
+                  value={overrideTimeOut}
+                  onChange={(e) => setOverrideTimeOut(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" disabled={isSavingCheckIn}>
+                  {isSavingCheckIn ? "Saving…" : "Save"}
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditingCheckIn(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>

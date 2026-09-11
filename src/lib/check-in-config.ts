@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
+import { ForbiddenError } from "@/lib/session";
+import type { SessionUser } from "@/lib/auth";
+import type { FlaggingRuleConfigInput, CheckInConfigInput } from "@/lib/validation/config";
+import type { Prisma } from "@/generated/prisma/client";
 
 export interface EffectiveCheckInConfig {
   timeInCutoff: string; // "HH:mm" Asia/Manila
@@ -44,4 +49,64 @@ export async function getFlaggingRuleConfig() {
   const existing = await prisma.flaggingRuleConfig.findFirst();
   if (existing) return existing;
   return prisma.flaggingRuleConfig.create({ data: {} });
+}
+
+// Config changes are audit-logged with before/after and take effect
+// prospectively — they never retroactively rewrite recorded statuses
+// (CLAUDE.md, PRD §6.11).
+
+export async function updateFlaggingRuleConfig(actor: SessionUser, input: FlaggingRuleConfigInput) {
+  if (actor.role !== "ADMIN") throw new ForbiddenError("Only the CTE office can change flagging rules.");
+
+  return prisma.$transaction(async (tx) => {
+    const before = await getFlaggingRuleConfig();
+    const updated = await tx.flaggingRuleConfig.update({ where: { id: before.id }, data: input });
+
+    await writeAuditLog(
+      {
+        actor,
+        action: "FLAGGING_RULES_UPDATE",
+        entityType: "FlaggingRuleConfig",
+        entityId: updated.id,
+        diff: {
+          before: {
+            absenceEarlyWarning: before.absenceEarlyWarning,
+            consecutiveAbsences: before.consecutiveAbsences,
+            dropEligibleAbove: before.dropEligibleAbove,
+            evaluationPendingDays: before.evaluationPendingDays,
+            behindPaceTolerance: before.behindPaceTolerance.toString(),
+          },
+          after: input,
+        } as unknown as Prisma.InputJsonValue,
+      },
+      tx,
+    );
+
+    return updated;
+  });
+}
+
+export async function updateGlobalCheckInConfig(actor: SessionUser, input: CheckInConfigInput) {
+  if (actor.role !== "ADMIN") throw new ForbiddenError("Only the CTE office can change check-in settings.");
+
+  return prisma.$transaction(async (tx) => {
+    const before = await getGlobalCheckInConfig();
+    const updated = await tx.checkInConfig.update({ where: { id: before.id }, data: input });
+
+    await writeAuditLog(
+      {
+        actor,
+        action: "CHECKIN_CONFIG_UPDATE",
+        entityType: "CheckInConfig",
+        entityId: updated.id,
+        diff: {
+          before: { timeInCutoff: before.timeInCutoff, timeOutStart: before.timeOutStart },
+          after: input,
+        } as unknown as Prisma.InputJsonValue,
+      },
+      tx,
+    );
+
+    return updated;
+  });
 }

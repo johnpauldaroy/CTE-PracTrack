@@ -21,7 +21,7 @@ Status values: **Not started** / **In progress** / **Blocked** / **Done**
 | 13 | Dashboards | Not started | |
 | 14 | Reports + CSV export | Not started | |
 | 15 | Notifications (in-app + Web Push) | Not started | VAPID keys generated and in `.env` (not committed) / documented in `.env.example`. |
-| 16 | Admin ops screens (audit log viewer, config settings UI) | Not started | |
+| 16 | Admin ops screens (audit log viewer, config settings UI) | In progress | Config settings UI done: `/settings` with My Account (avatar, Change Password form), Flagging Rules (all 5 rules exposed — the mockup only shows 3; added the other 2 per CLAUDE.md's "every flagging rule is config" requirement, noted inline in the UI), Check-in (global cut-off/start, matching mockup copy). Also wired the previously-read-only School Overview check-in card into an actual Edit form using the existing `/api/schools/[id]/check-in-override` endpoint. Audit log viewer not yet built. |
 | 17 | Seeding, testing, docs | Not started | |
 
 ## Blocked
