@@ -1,15 +1,14 @@
 import { redirect } from "next/navigation";
-import { Home, Users, AlertTriangle, User } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { MobileHeader } from "@/components/mobile/mobile-header";
-import { BottomTabBar } from "@/components/mobile/bottom-tab-bar";
+import { BottomTabBar, type TabItem } from "@/components/mobile/bottom-tab-bar";
 
 const TABS = [
-  { label: "Home", href: "/m/supervisor", icon: Home },
-  { label: "Interns", href: "/m/supervisor/interns", icon: Users },
-  { label: "Alerts", href: "/m/supervisor/alerts", icon: AlertTriangle },
-  { label: "Profile", href: "/m/supervisor/profile", icon: User },
-];
+  { label: "Home", href: "/m/supervisor", icon: "Home" },
+  { label: "Interns", href: "/m/supervisor/interns", icon: "Users" },
+  { label: "Alerts", href: "/m/supervisor/alerts", icon: "AlertTriangle" },
+  { label: "Profile", href: "/m/supervisor/profile", icon: "User" },
+] satisfies TabItem[];
 
 export default async function SupervisorLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

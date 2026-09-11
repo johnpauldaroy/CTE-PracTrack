@@ -41,7 +41,7 @@ export async function getDtr(user: SessionUser, internId: string, shiftingId: st
     orderBy: { date: "desc" },
   });
 
-  const allRecords = withMaterializedAbsences(records, shifting);
+  const allRecords = materializeAttendanceRecords(records, shifting);
 
   const summary: DtrSummary = { present: 0, absent: 0, incomplete: 0, late: 0, excused: 0 };
   const rows: DtrRow[] = allRecords.map((r) => {
@@ -113,7 +113,10 @@ type MaterializedRecord = Pick<
  * "school day" concept added to Shifting/School before this is correct —
  * flagging rather than silently assuming weekdays-only.
  */
-function withMaterializedAbsences(records: AttendanceRecord[], shifting: Shifting): MaterializedRecord[] {
+export function materializeAttendanceRecords(
+  records: AttendanceRecord[],
+  shifting: Shifting,
+): MaterializedRecord[] {
   const byDate = new Map(records.map((r) => [r.date.getTime(), r]));
   const today = todayManilaDateOnly();
   const rangeEnd = shifting.endDate < today ? shifting.endDate : today;

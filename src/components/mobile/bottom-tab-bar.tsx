@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AlertTriangle, BookOpen, Calendar, FileText, Home, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
+
+const TAB_ICONS = { AlertTriangle, BookOpen, Calendar, FileText, Home, User, Users };
+export type TabIconName = keyof typeof TAB_ICONS;
 
 export interface TabItem {
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: TabIconName;
 }
 
 export function BottomTabBar({ items }: { items: TabItem[] }) {
@@ -18,7 +21,7 @@ export function BottomTabBar({ items }: { items: TabItem[] }) {
     <nav className="sticky bottom-0 z-10 flex border-t bg-card">
       {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(item.href + "/");
-        const Icon = item.icon;
+        const Icon = TAB_ICONS[item.icon];
         return (
           <Link
             key={item.href}

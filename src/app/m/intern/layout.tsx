@@ -1,16 +1,15 @@
 import { redirect } from "next/navigation";
-import { Home, Calendar, BookOpen, FileText, User } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { MobileHeader } from "@/components/mobile/mobile-header";
-import { BottomTabBar } from "@/components/mobile/bottom-tab-bar";
+import { BottomTabBar, type TabItem } from "@/components/mobile/bottom-tab-bar";
 
 const TABS = [
-  { label: "Home", href: "/m/intern", icon: Home },
-  { label: "Attendance", href: "/m/intern/attendance", icon: Calendar },
-  { label: "Sessions", href: "/m/intern/sessions", icon: BookOpen },
-  { label: "Documents", href: "/m/intern/documents", icon: FileText },
-  { label: "Profile", href: "/m/intern/profile", icon: User },
-];
+  { label: "Home", href: "/m/intern", icon: "Home" },
+  { label: "Attendance", href: "/m/intern/attendance", icon: "Calendar" },
+  { label: "Sessions", href: "/m/intern/sessions", icon: "BookOpen" },
+  { label: "Documents", href: "/m/intern/documents", icon: "FileText" },
+  { label: "Profile", href: "/m/intern/profile", icon: "User" },
+] satisfies TabItem[];
 
 export default async function InternLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

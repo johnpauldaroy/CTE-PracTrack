@@ -15,7 +15,15 @@ export async function GET() {
     }
     const activeShifting = await getActiveShifting();
     const interns = await listInternsForSchool(user, user.supervisorSchoolId, activeShifting?.id ?? null);
-    return NextResponse.json({ interns });
+    return NextResponse.json({
+      interns,
+      activeShifting: activeShifting
+        ? {
+            id: activeShifting.id,
+            requiredTeachingSessions: activeShifting.requiredTeachingSessions,
+          }
+        : null,
+    });
   } catch (error) {
     return toApiErrorResponse(error);
   }
