@@ -32,3 +32,25 @@ Append-only. One entry per work session, most recent first.
 **Blocked on:** Supabase `DATABASE_URL`/`DIRECT_URL` and API keys — nothing that needs a live query (migration, seed, any CRUD) can run or be verified until these arrive. Continuing with schema-independent work (config/seed scripts that don't need to execute yet, PWA shell, static UI) in the meantime.
 
 **Next:** PWA manifest + service worker registration (still scaffold-phase, MASTER_PROMPT step 1). Then config/seed data module (step 5) written so it's ready to run the moment the DB is connected. Apply the navy+amber theme to `globals.css` per `UI_FLOW_SPEC.md` §6.9.
+
+---
+
+## 2026-09-11 (cont'd) — PWA shell, theme, config + seed data
+
+**Did:**
+- Applied the navy+amber theme to `globals.css` (`:root`/`.dark` tokens) matching `UI_FLOW_SPEC.md` §6.9's confirmed palette exactly — navy `oklch(0.205 0.03 265)`-family for structural/brand, amber `oklch(0.75 0.15 75)`-family for primary CTA/accent, plus explicit `--success`/`--warning` semantic tokens since the app leans heavily on status-color coding (present/absent/incomplete pills, warning banners). Added a Lora (serif) `--font-heading` variable for the display headings the deck shows on "Dashboard", "Schools", etc., keeping Geist Sans for body/table text.
+- Built the PWA shell: `manifest.webmanifest`, a service worker (`public/sw.js`) that caches the app shell for GET requests only and explicitly never intercepts non-GET requests — CLAUDE.md is emphatic that time-in/out, evaluation submission, and uploads must fail loudly offline, never queue. Generated icon/favicon assets via `sharp` (already a transitive Next.js dependency; no new install needed) since no PDF/image conversion tool was available on this machine (poppler and ImageMagick both absent — Ghostscript, already installed, was used instead to rasterize the flow deck).
+- Wired a client-side `ServiceWorkerRegistration` component into the root layout.
+- Fixed the Prisma-generated client import path: the new `prisma-client` generator (Prisma 6.19, replacing the old `prisma-client-js`) has no `index.ts` — its entry point is `client.ts`. Every internal import now uses `@/generated/prisma/client`, not `@/generated/prisma`. Also fixed a NextAuth v5 beta type mismatch in the `authorize`/`session` callbacks (return type needed a cast through `next-auth`'s own `User` type, not a hand-rolled `{ id: string }`).
+- Verified `npx tsc --noEmit` and `npm run build` both pass clean end-to-end (Turbopack build, 3 routes).
+- Committed the scaffold + foundation layer as the first commit (52 files).
+- Built step 5 (config + seed data) fully in code, matching CLAUDE.md's resolver requirements:
+  - `src/lib/check-in-config.ts` — the one school-override→global cascade resolver, plus singleton getters that create-on-first-read.
+  - `src/lib/evaluation-score.ts` — the one weighted-scoring implementation (criterion mean ÷ 5 × weight, summed), throwing on any missing item rating rather than silently treating it as zero.
+  - `prisma/seed/` — a seed script assembled from real mockup data: 15 partner schools (names, municipalities, types, and approximate town-center coordinates — explicitly documented as unsurveyed placeholders), one admin + 4 supervisors + 1 active/1 pending CT + 13 interns all matching the names/emails shown in `UI_FLOW_SPEC.md`, one academic-year/semester with a completed First Shifting and active Second Shifting, and the full six-criterion evaluation instrument. Weights are asserted to sum to 100 at seed time (throws otherwise). The four criteria whose item wording PRD §10 Q2 leaves open (Content, Teaching Methods, Classroom Management, Questioning Skills) are seeded with one explicit `PLACEHOLDER` item each plus a `console.warn`, rather than inventing plausible-sounding item text.
+  - Wired `prisma.config.ts`'s `migrations.seed` and added `db:generate`/`db:migrate`/`db:seed`/`db:studio` npm scripts.
+  - Confirmed `tsx` resolves the project's `@/*` tsconfig path alias natively (no `tsconfig-paths` package needed) and dry-ran the seed script against a placeholder `DATABASE_URL` — it runs every line of business logic (including the weights-sum check) and fails only at the actual network call, confirming it's ready to go the moment Supabase credentials land.
+
+**Still blocked on:** Supabase `DATABASE_URL`/`DIRECT_URL`/API keys.
+
+**Next:** Continue toward step 6 (academic period module) and step 7 (school management) — build the CRUD API routes and admin UI now, since those don't strictly require a live DB to write correctly, then run the first real migration + seed the moment credentials arrive.
