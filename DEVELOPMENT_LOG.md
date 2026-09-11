@@ -92,3 +92,18 @@ Append-only. One entry per work session, most recent first.
 **Still blocked on:** Supabase DB connection string(s) + service role key — nothing has touched a live database yet. Disk space is down to ~4.4GB free; worth monitoring before further large installs.
 
 **Next:** Geofenced attendance (step 9) — the core thesis feature. Time-in/time-out endpoints with server-side haversine distance check and status derivation, the DTR query, supervisor excuse marking, and the intern attendance UI. This unblocks wiring real data into the Intern Detail DTR tab and School/CT stat cards that are currently showing placeholder "—" or zero values.
+
+---
+
+## 2026-09-11 (cont'd) — Academic period module (Semesters)
+
+**Did:**
+- Built `services/academic-period-service.ts`: `createSemester` (upserts the AcademicYear by label, creates a Semester with both FIRST/SECOND Shiftings fixed at UPCOMING status, per the mockup's own helper text "Each semester is created with two fixed shiftings"), `configureShifting` (dates + requiredTeachingSessions/requiredFinalDemos, audit-logged with before/after), and `activateShifting` — the single-active-shifting invariant as one transaction: find the currently-ACTIVE shifting (if any), flip it to COMPLETED with a timestamp, flip the target to ACTIVE with a timestamp, audit-log both sides.
+- Documented directly in the code why "activation resets displayed counters" required no counter-reset code: every attendance/session/document/alert query in the app is already scoped by `shiftingId` (enforced by the schema and the service layer throughout), so a newly-activated shifting simply has zero rows under it and every count reads as zero automatically. Historical shiftings stay fully intact and queryable — there was never anything to zero out at the database level, only a status flip.
+- API routes: `/api/semesters` (list nested academic years/semesters/shiftings + create), `/api/shiftings/[id]/configure`, `/api/shiftings/[id]/activate`, `/api/academic-years/archived`.
+- Admin UI at `/semesters` matching UI_FLOW_SPEC.md §2.10 closely: academic year cards containing First/Second Shifting sub-cards with status pills (Active/Completed/Upcoming), the exact activation warning banner copy from the mockup, an inline (not drawer) Add Semester form that toggles open, a centered Configure Shifting modal (2x2 field grid: dates + requirements), and a collapsible Archived Academic Years section that only fetches its data once expanded (avoids an unnecessary query on every page load).
+- `tsc --noEmit` and `npm run build` both clean (30 routes now).
+
+**Still blocked on:** Supabase DB connection string(s) + service role key.
+
+**Next:** Geofenced attendance (step 9) — the load-bearing thesis feature. Time-in/time-out endpoints with server-side haversine + cutoff derivation, DTR query, supervisor excuse marking, intern attendance UI. After that, likely a quick pass on Settings (Flagging Rules + Check-in config screens) since the resolvers already exist and just need a UI, before tackling sessions/evaluation.
