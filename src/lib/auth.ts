@@ -3,20 +3,9 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import type { Role } from "@/generated/prisma/client";
+import { authConfig, type SessionUser } from "@/lib/auth.config";
 
-// Everything a request needs to enforce scope, carried on the JWT session so
-// no route ever has to re-derive it from a client-supplied id (CLAUDE.md).
-export interface SessionUser {
-  id: string;
-  email: string;
-  name: string;
-  role: Role;
-  // Populated only for the role it applies to; every other field is undefined.
-  supervisorSchoolId?: string | null;
-  cooperatingTeacherProfileId?: string | null;
-  internProfileId?: string | null;
-}
+export type { SessionUser } from "@/lib/auth.config";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -24,11 +13,10 @@ const credentialsSchema = z.object({
   role: z.enum(["ADMIN", "SUPERVISOR", "COOPERATING_TEACHER", "STUDENT_INTERN"]),
 });
 
+// Full config (Node.js runtime only — routes, server components, server
+// actions). Never import this from middleware.ts; use auth.config.ts there.
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
-  pages: {
-    signIn: "/login",
-  },
+  ...authConfig,
   providers: [
     Credentials({
       credentials: {
@@ -70,32 +58,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    jwt: async ({ token, user }) => {
-      if (user) {
-        const sessionUser = user as unknown as SessionUser;
-        token.role = sessionUser.role;
-        token.supervisorSchoolId = sessionUser.supervisorSchoolId;
-        token.cooperatingTeacherProfileId = sessionUser.cooperatingTeacherProfileId;
-        token.internProfileId = sessionUser.internProfileId;
-        token.name = sessionUser.name;
-        token.email = sessionUser.email;
-        token.sub = sessionUser.id;
-      }
-      return token;
-    },
-    session: async ({ session, token }) => {
-      const sessionUser: SessionUser = {
-        id: token.sub as string,
-        email: (token.email as string) ?? "",
-        name: (token.name as string) ?? "",
-        role: token.role as Role,
-        supervisorSchoolId: token.supervisorSchoolId as string | null | undefined,
-        cooperatingTeacherProfileId: token.cooperatingTeacherProfileId as string | null | undefined,
-        internProfileId: token.internProfileId as string | null | undefined,
-      };
-      session.user = sessionUser as unknown as typeof session.user;
-      return session;
-    },
-  },
 });
