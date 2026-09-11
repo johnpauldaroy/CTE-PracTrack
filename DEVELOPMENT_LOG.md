@@ -76,3 +76,19 @@ Append-only. One entry per work session, most recent first.
 **Still blocked on:** Supabase DB connection string(s) + service role key. Nothing built so far has touched a real database yet.
 
 **Next:** Account management (step 8) — admin CRUD for interns/supervisors, CT approval UI (which will also need to resolve the password-delivery gap), and wiring the stubbed View Profile/Unassign buttons on the Schools > Interns tab.
+
+---
+
+## 2026-09-11 (cont'd) — Account management module
+
+**Did:**
+- Built the full account-management module per PRD §6.3/§6.4 and UI_FLOW_SPEC.md §2.7-2.9: `validation/account.ts`, `services/account-service.ts` (admin intern edit/delete — deliberately no admin intern *create*, since PRD §6.3's helper copy is explicit that only a supervisor creates intern accounts; supervisor full CRUD; `createInternBySupervisor` which hardcodes `assignedSchoolId` to the acting supervisor's own `supervisorSchoolId` from the session and never reads it from the request body), and `services/ct-approval-service.ts` (pending/active lists, a `getCtDetail` that computes each assigned intern's session/absence counts against the active shifting, approve, delete/reject).
+- While writing `ct-approval-service.ts` noticed and fixed a design inconsistency: I'd started using `requireRole("ADMIN")` (which re-fetches the session internally) inside functions that also took an already-resolved `user: SessionUser` parameter — meaning the parameter went unused and every call did a redundant second session fetch. Standardized on the `school-service.ts`/`account-service.ts` pattern instead: a local `requireAdmin(user)` guard that checks the already-resolved actor.
+- API routes under `/api/accounts/*` (interns, supervisors, CT pending/active/approve/delete) plus `/api/supervisor/interns` (list + create, scoped to the caller's own school) — the latter isn't wired into any UI yet since the mobile Supervisor surface doesn't exist, but the backend is ready for it.
+- Admin UI: `/accounts` with three tabs matching the mockup exactly — Interns (debounced search, Edit drawer explicitly labeled "for corrections only" per the mockup's own copy, a 4-tab View detail drawer whose DTR/Sessions/Evaluations/Documents sub-tabs currently render an explicit "not yet available" placeholder rather than fake data, since those modules don't exist yet), Supervisors (Add/Edit share one form sheet component, keyed by mode), Cooperating Teachers (Pending Approval table with amber row tint and stacked Approve/Delete text actions matching the mockup, Active table with a CT detail drawer showing "Name — Course · x/15 sessions · n absences" per assigned intern exactly as specced).
+- Wired the Schools > Interns tab's previously-stubbed "View Profile" button to the same intern detail sheet (shared component, not duplicated). Left "Unassign" disabled with an explanatory comment and tooltip rather than inventing behavior — PRD §6.4 fixes an intern's school at account-creation time and no document defines a separate "unassign" action distinct from editing or deleting the account.
+- `tsc --noEmit` and `npm run build` both clean (26 routes now).
+
+**Still blocked on:** Supabase DB connection string(s) + service role key — nothing has touched a live database yet. Disk space is down to ~4.4GB free; worth monitoring before further large installs.
+
+**Next:** Geofenced attendance (step 9) — the core thesis feature. Time-in/time-out endpoints with server-side haversine distance check and status derivation, the DTR query, supervisor excuse marking, and the intern attendance UI. This unblocks wiring real data into the Intern Detail DTR tab and School/CT stat cards that are currently showing placeholder "—" or zero values.

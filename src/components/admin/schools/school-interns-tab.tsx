@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InternDetailSheet } from "@/components/admin/accounts/intern-detail-sheet";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -21,6 +23,7 @@ export function SchoolInternsTab({ schoolId }: { schoolId: string }) {
     `/api/schools/${schoolId}/interns`,
     fetcher,
   );
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
@@ -52,10 +55,14 @@ export function SchoolInternsTab({ schoolId }: { schoolId: string }) {
                   {intern.absences}
                 </TableCell>
                 <TableCell className="flex justify-end gap-2 text-right">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => setViewingId(intern.id)}>
                     View Profile
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-destructive">
+                  {/* "Unassign" has no defined backend semantic yet — PRD §6.4 fixes an
+                      intern's school at creation and doesn't describe an unassign action
+                      distinct from editing/deleting the account. Not wiring this until
+                      that's clarified rather than guessing at behavior. */}
+                  <Button variant="ghost" size="sm" className="text-destructive" disabled title="Not yet implemented">
                     Unassign
                   </Button>
                 </TableCell>
@@ -71,6 +78,8 @@ export function SchoolInternsTab({ schoolId }: { schoolId: string }) {
           </TableBody>
         </Table>
       </div>
+
+      <InternDetailSheet internId={viewingId} onOpenChange={(open) => !open && setViewingId(null)} />
     </div>
   );
 }
