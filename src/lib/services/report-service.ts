@@ -1,0 +1,16 @@
+import { prisma } from "@/lib/prisma";
+import { ForbiddenError } from "@/lib/session";
+import { materializeAttendanceRecords } from "@/lib/services/dtr-service";
+import type { SessionUser } from "@/lib/auth";
+
+export async function getReports(actor: SessionUser) {
+  if (actor.role !== "ADMIN") throw new ForbiddenError();
+  const shifting = await prisma.shifting.findFirst({ where: { status: "ACTIVE" } });
+  const schools = await prisma.school.findMany({ where: { deletedAt: null }, include: { interns: { include: { attendanceRecords: { where: { shiftingId: shifting?.id ?? "__none__" } }, teachingSessions: { where: { shiftingId: shifting?.id ?? "__none__" }, include: { documents: { where: { supersededByDocumentId: null } } } } } } }, orderBy: { name: "asc" } });
+  const attendance = schools.map((school) => { let present = 0, absences = 0, excused = 0, late = 0, attended = 0, expected = 0; for (const intern of school.interns) { const rows = shifting ? materializeAttendanceRecords(intern.attendanceRecords, shifting) : []; expected += rows.filter((row) => row.status !== "EXCUSED").length; present += rows.filter((row) => row.status === "PRESENT").length; late += rows.filter((row) => row.status === "LATE").length; absences += rows.filter((row) => row.status === "ABSENT").length; excused += rows.filter((row) => row.status === "EXCUSED").length; attended += rows.filter((row) => row.status === "PRESENT" || row.status === "LATE").length; } return { schoolId: school.id, school: school.name, interns: school.interns.length, present, absences, excused, late, attendanceRate: expected ? Math.round(attended / expected * 10000) / 100 : 0 }; });
+  const compliance = schools.map((school) => { let onTrack = 0, behind = 0, sessionsLogged = 0, missingLessonPlans = 0, missingProgressReports = 0; for (const intern of school.interns) { const sessions = intern.teachingSessions; sessionsLogged += sessions.length; const isBehind = !!shifting && sessions.filter((s) => s.status === "EVALUATED" && s.type === "REGULAR").length < shifting.requiredTeachingSessions; if (isBehind) behind++; else onTrack++; for (const session of sessions) { if (!session.documents.some((d) => d.type === "LESSON_PLAN")) missingLessonPlans++; if (!session.documents.some((d) => d.type === "PROGRESS_REPORT")) missingProgressReports++; } } return { schoolId: school.id, school: school.name, onTrack, behind, sessionsLogged, missingLessonPlans, missingProgressReports }; });
+  const resolvedAlerts = await prisma.alert.findMany({ where: { status: "RESOLVED" }, include: { intern: { include: { user: true, assignedSchool: true } }, resolvedByUser: true }, orderBy: { resolvedAt: "desc" } });
+  return { shifting, attendance, compliance, resolvedAlerts };
+}
+
+export async function getDashboard(actor: SessionUser) { const reports = await getReports(actor); const activeAlerts = await prisma.alert.findMany({ where: { status: "ACTIVE" }, include: { intern: { include: { user: true, assignedSchool: true } } }, orderBy: { severity: "desc" }, take: 10 }); return { ...reports, activeAlerts, totals: { schools: reports.attendance.length, interns: reports.attendance.reduce((n, row) => n + row.interns, 0), absences: reports.attendance.reduce((n, row) => n + row.absences, 0), activeAlerts: await prisma.alert.count({ where: { status: "ACTIVE" } }) } }; }

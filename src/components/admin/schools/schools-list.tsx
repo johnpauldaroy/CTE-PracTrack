@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddSchoolSheet } from "@/components/admin/schools/add-school-sheet";
+import { Eye, Plus } from "lucide-react";
 
 export function SchoolsList() {
   const { schools, isLoading, mutate } = useSchools();
@@ -19,7 +20,7 @@ export function SchoolsList() {
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-3xl font-bold">Schools</h1>
-        <Button onClick={() => setAddOpen(true)}>+ Add School</Button>
+        <Button onClick={() => setAddOpen(true)}><Plus /> Add School</Button>
       </div>
 
       {isLoading ? (
@@ -80,7 +81,7 @@ function SchoolTable({
                 </TableCell>
                 <TableCell className="text-right">
                   <Button variant="outline" size="sm" render={<Link href={`/schools/${school.id}`} />}>
-                    View
+                    <Eye /> View
                   </Button>
                 </TableCell>
               </TableRow>

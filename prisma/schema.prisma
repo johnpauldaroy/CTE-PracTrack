@@ -453,7 +453,10 @@ model Alert {
 
   // One active alert of a given type per intern per shifting — re-evaluation updates
   // detail/severity on the existing row instead of duplicating it.
-  @@unique([internId, shiftingId, type, status])
+  // Active-alert deduplication is enforced transactionally in alert-service.
+  // A SQL partial unique index is recommended in production; a Prisma @@unique
+  // including status would incorrectly allow only one RESOLVED alert forever.
+  @@index([internId, shiftingId, type, status])
   @@index([shiftingId, status])
   @@index([internId, shiftingId])
 }

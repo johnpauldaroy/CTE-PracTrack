@@ -19,7 +19,7 @@ export default async function InternLayout({ children }: { children: React.React
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col bg-background">
-      <MobileHeader />
+      <MobileHeader notificationHref="/m/intern/notifications" />
       <main className="flex-1 overflow-y-auto pb-4">{children}</main>
       <BottomTabBar items={TABS} />
     </div>

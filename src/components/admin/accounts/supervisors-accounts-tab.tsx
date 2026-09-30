@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SupervisorFormSheet } from "@/components/admin/accounts/supervisor-form-sheet";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -38,13 +39,13 @@ export function SupervisorsAccountsTab() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <Button onClick={() => setSheetMode({ mode: "add" })}>+ Add Supervisor</Button>
+        <Button onClick={() => setSheetMode({ mode: "add" })}><Plus /> Add Supervisor</Button>
       </div>
 
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
           <Table>
             <TableHeader>
               <TableRow>
@@ -66,10 +67,10 @@ export function SupervisorsAccountsTab() {
                   </TableCell>
                   <TableCell className="flex justify-end gap-2 text-right">
                     <Button variant="outline" size="sm" onClick={() => setSheetMode({ mode: "edit", id: s.id })}>
-                      Edit
+                      <Pencil /> Edit
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(s)}>
-                      Delete
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(s)}>
+                      <Trash2 /> Delete
                     </Button>
                   </TableCell>
                 </TableRow>

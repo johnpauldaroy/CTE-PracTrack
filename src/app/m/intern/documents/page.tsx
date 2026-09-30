@@ -1,10 +1,15 @@
+"use client";
+import { useState } from "react";
+import useSWR from "swr";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+interface DocumentRow { id: string; type: string; originalFilename: string }
+interface SessionRow { id: string; sessionNumber: number; subject: string; documents: DocumentRow[] }
 export default function InternDocumentsPage() {
-  return (
-    <div className="p-4">
-      <h1 className="font-heading text-xl font-bold">Documents</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Document uploads aren&apos;t built yet — coming in a later module.
-      </p>
-    </div>
-  );
+  const { data, mutate } = useSWR<{ sessions: SessionRow[] }>("/api/documents", fetcher); const [busy, setBusy] = useState("");
+  async function upload(sessionId: string, type: string, file: File | undefined) { if (!file) return; const key = sessionId + type; setBusy(key); const form = new FormData(); form.set("sessionId", sessionId); form.set("type", type); form.set("file", file); const response = await fetch("/api/documents", { method: "POST", body: form }); const result = await response.json(); setBusy(""); if (!response.ok) return toast.error(result.error ?? "Upload failed."); toast.success("Document uploaded."); mutate(); }
+  async function view(doc: DocumentRow) { const response = await fetch(`/api/documents/${doc.id}/url?kind=session`); const result = await response.json(); if (response.ok) window.open(result.url, "_blank", "noopener,noreferrer"); else toast.error(result.error); }
+  return <div className="flex flex-col gap-4 p-4"><div><h1 className="font-heading text-xl font-bold">Documents</h1><p className="text-sm text-muted-foreground">PDF, JPG or PNG, up to 10 MB.</p></div>{data?.sessions.length ? data.sessions.map((session) => <article key={session.id} className="rounded-xl border bg-card p-4"><h2 className="font-semibold">Session {session.sessionNumber}: {session.subject}</h2>{(["LESSON_PLAN", "PROGRESS_REPORT"] as const).map((type) => { const doc = session.documents.find((item) => item.type === type); return <div key={type} className="mt-3 flex items-center justify-between gap-2"><div><p className="text-sm">{type === "LESSON_PLAN" ? "Lesson Plan" : "Progress Report"}</p>{doc ? <button onClick={() => view(doc)} className="max-w-44 truncate text-xs text-primary underline">{doc.originalFilename}</button> : <Badge variant="secondary">Missing</Badge>}</div><label className="cursor-pointer rounded-lg border px-3 py-2 text-xs font-medium">{busy === session.id + type ? "Uploading…" : doc ? "Replace" : "Upload"}<input className="sr-only" type="file" accept=".pdf,.jpg,.jpeg,.png" disabled={!!busy} onChange={(event) => upload(session.id, type, event.target.files?.[0])} /></label></div>; })}</article>) : <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">Documents appear after a teaching session is assigned.</p>}<EndTermUpload /></div>;
 }
+function EndTermUpload() { const [busy, setBusy] = useState(false); async function upload(type: string, file: File | undefined) { if (!file) return; setBusy(true); const form = new FormData(); form.set("type", type); form.set("dueDate", new Date().toISOString()); form.set("file", file); const response = await fetch("/api/documents/end-term", { method: "POST", body: form }); const result = await response.json(); setBusy(false); response.ok ? toast.success("End-of-term document uploaded.") : toast.error(result.error); } return <section className="rounded-xl border bg-card p-4"><h2 className="font-semibold">End-of-Term Submissions</h2>{(["NARRATIVE_REPORT", "TEACHING_PORTFOLIO"] as const).map((type) => <label key={type} className="mt-3 flex cursor-pointer items-center justify-between rounded-lg border p-3 text-sm"><span>{type === "NARRATIVE_REPORT" ? "Narrative Report" : "Teaching Portfolio"}</span><span className="font-medium text-primary">{busy ? "Uploading…" : "Choose file"}</span><input className="sr-only" type="file" accept=".pdf,.jpg,.jpeg,.png" disabled={busy} onChange={(event) => upload(type, event.target.files?.[0])} /></label>)}</section>; }

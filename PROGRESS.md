@@ -4,6 +4,16 @@ Tracks status against the `MASTER_PROMPT.md` build order. Update this file (stat
 
 Status values: **Not started** / **In progress** / **Blocked** / **Done**
 
+## 2026-09-30 implementation reconciliation
+
+The table below predates several completed modules. Current source-of-truth status after a full code audit:
+
+- PWA shell, authentication UI, geofenced attendance, DTR, intern home, and supervisor intern attendance/excuse workflow are implemented.
+- Teaching sessions/evaluations are implemented end-to-end, including the CT mobile surface, CT roster assignment, config-driven scoring, immutable submission, notifications, and audit logs.
+- Session and end-of-term document upload is implemented with Supabase Storage, replacement history, role-scoped signed URLs, and file validation (PDF/JPG/PNG, 10 MB draft limit pending CTE confirmation).
+- At-risk rule evaluation, deduplicated active alerts, supervisor resolution notes, admin/supervisor dashboards, reports, CSV export, in-app notifications, push subscription capture, and the admin audit viewer are implemented.
+- Remaining hardening: apply the latest Prisma schema change to the live database, configure/create the `practrack-documents` Storage bucket, replace the four placeholder evaluation criteria with the official instrument, deliver actual Web Push messages from stored subscriptions, add comprehensive automated/E2E tests, and finish user/deployment documentation.
+
 | # | Module | Status | Notes |
 |---|---|---|---|
 | 1 | Scaffold (Next.js + TS + Tailwind + shadcn/ui + Prisma + PWA shell) | In progress | Next.js 16.3.4 / React 19.2.8 / Tailwind v4 scaffolded, shadcn/ui initialized (style: base-nova, navy+amber theme pending). Prisma installed & pinned to 6.19.3 (matched CLI+client) after `latest` resolved to an unstable 8.0.0-rc with broken transitive deps. PWA manifest + service worker not yet added. |

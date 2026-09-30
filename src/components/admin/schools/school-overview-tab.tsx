@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { MapPin } from "lucide-react";
+import { MapPin, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -153,7 +153,7 @@ export function SchoolOverviewTab({
             <h3 className="font-semibold">Check-in Settings</h3>
             {!isEditingCheckIn && (
               <Button variant="outline" size="sm" onClick={() => setIsEditingCheckIn(true)}>
-                Edit
+                <Pencil /> Edit
               </Button>
             )}
           </div>
@@ -200,7 +200,7 @@ export function SchoolOverviewTab({
                   {isSavingCheckIn ? "Saving…" : "Save"}
                 </Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditingCheckIn(false)}>
-                  Cancel
+                  <X /> Cancel
                 </Button>
               </div>
             </form>

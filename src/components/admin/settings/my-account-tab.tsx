@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Lock } from "lucide-react";
+import { Lock, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -126,7 +126,7 @@ export function MyAccountTab({ user }: { user: SessionUser }) {
                   {isSubmitting ? "Saving…" : "Change Password"}
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => setShowChangePassword(false)}>
-                  Cancel
+                  <X /> Cancel
                 </Button>
               </div>
             </form>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
+import { Eye, UserX } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -56,14 +57,14 @@ export function SchoolInternsTab({ schoolId }: { schoolId: string }) {
                 </TableCell>
                 <TableCell className="flex justify-end gap-2 text-right">
                   <Button variant="outline" size="sm" onClick={() => setViewingId(intern.id)}>
-                    View Profile
+                    <Eye /> View Profile
                   </Button>
                   {/* "Unassign" has no defined backend semantic yet — PRD §6.4 fixes an
                       intern's school at creation and doesn't describe an unassign action
                       distinct from editing/deleting the account. Not wiring this until
                       that's clarified rather than guessing at behavior. */}
                   <Button variant="ghost" size="sm" className="text-destructive" disabled title="Not yet implemented">
-                    Unassign
+                    <UserX /> Unassign
                   </Button>
                 </TableCell>
               </TableRow>

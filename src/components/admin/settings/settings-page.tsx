@@ -1,5 +1,6 @@
 "use client";
 
+import { Clock, Flag, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MyAccountTab } from "@/components/admin/settings/my-account-tab";
 import { FlaggingRulesTab } from "@/components/admin/settings/flagging-rules-tab";
@@ -13,9 +14,9 @@ export function SettingsPage({ user }: { user: SessionUser }) {
 
       <Tabs defaultValue="account">
         <TabsList className="grid w-full grid-cols-3 sm:w-fit">
-          <TabsTrigger value="account">My Account</TabsTrigger>
-          <TabsTrigger value="flagging">Flagging Rules</TabsTrigger>
-          <TabsTrigger value="checkin">Check-in</TabsTrigger>
+          <TabsTrigger value="account"><User /> My Account</TabsTrigger>
+          <TabsTrigger value="flagging"><Flag /> Flagging Rules</TabsTrigger>
+          <TabsTrigger value="checkin"><Clock /> Check-in</TabsTrigger>
         </TabsList>
 
         <TabsContent value="account" className="mt-6">

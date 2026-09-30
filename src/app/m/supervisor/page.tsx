@@ -1,11 +1,9 @@
-export default function SupervisorHomePage() {
-  return (
-    <div className="p-4">
-      <h1 className="font-heading text-xl font-bold">Home</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        The Supervisor home dashboard isn&apos;t built yet — it depends on the at-risk alerts module.
-        Use the Interns tab to view attendance and mark excused absences.
-      </p>
-    </div>
-  );
-}
+"use client";
+import Link from "next/link";
+import useSWR from "swr";
+import { Badge } from "@/components/ui/badge";
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+interface Intern { id: string; name: string; sessionsLogged: number; absences: number; isFlagged: boolean }
+interface Alert { id: string; detail: string; severity: string; intern: { user: { name: string } } }
+export default function SupervisorHomePage() { const { data: interns } = useSWR<{ interns: Intern[] }>("/api/supervisor/interns", fetcher); const { data: alerts } = useSWR<{ alerts: Alert[] }>("/api/alerts", fetcher); const rows = interns?.interns ?? []; return <div className="flex flex-col gap-5 p-4"><div><h1 className="font-heading text-2xl font-bold">Supervisor Home</h1><p className="text-sm text-muted-foreground">Your assigned school at a glance</p></div><div className="grid grid-cols-3 gap-3"><Tile value={rows.length} label="Interns"/><Tile value={rows.reduce((n, row) => n + row.absences, 0)} label="Absences"/><Tile value={alerts?.alerts.length ?? 0} label="Alerts"/></div><section><div className="mb-3 flex justify-between"><h2 className="font-semibold">Requiring Attention</h2><Link href="/m/supervisor/alerts" className="text-sm text-primary">View all</Link></div><div className="flex flex-col gap-3">{alerts?.alerts.slice(0, 5).map((alert) => <article key={alert.id} className="rounded-xl border bg-card p-4"><div className="flex justify-between"><p className="font-medium">{alert.intern.user.name}</p><Badge variant={alert.severity === "HIGH" ? "destructive" : "secondary"}>{alert.severity}</Badge></div><p className="mt-1 text-sm">{alert.detail}</p></article>)}{alerts && !alerts.alerts.length && <p className="text-sm text-muted-foreground">No active alerts.</p>}</div></section></div>; }
+function Tile({ value, label }: { value: number; label: string }) { return <div className="rounded-xl border bg-card p-3 text-center"><p className="text-xl font-bold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>; }

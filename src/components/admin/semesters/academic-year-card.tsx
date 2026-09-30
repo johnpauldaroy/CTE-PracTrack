@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { Archive, Check, Pencil } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,16 +116,16 @@ function ShiftingCard({
       <div className="mt-3 flex gap-2">
         {shifting.status === "COMPLETED" ? (
           <Button variant="outline" size="sm" disabled>
-            View Archive
+            <Archive /> View Archive
           </Button>
         ) : (
           <>
             <Button variant="outline" size="sm" onClick={onConfigure}>
-              Edit
+              <Pencil /> Edit
             </Button>
             {shifting.status === "UPCOMING" && (
               <Button size="sm" onClick={handleActivate} disabled={isActivating}>
-                {isActivating ? "Activating…" : "Activate"}
+                <Check /> {isActivating ? "Activating…" : "Activate"}
               </Button>
             )}
           </>

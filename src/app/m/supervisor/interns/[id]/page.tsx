@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InternDtrTab } from "@/components/mobile/supervisor/intern-dtr-tab";
+import { CtAssignment } from "@/components/mobile/supervisor/ct-assignment";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -41,6 +42,8 @@ export default function SupervisorInternDetailPage({ params }: { params: Promise
           </p>
         </div>
       )}
+
+      <CtAssignment internId={id} />
 
       <Tabs defaultValue="dtr">
         <TabsList className="grid w-full grid-cols-4">

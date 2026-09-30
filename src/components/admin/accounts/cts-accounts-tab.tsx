@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CtDetailSheet } from "@/components/admin/accounts/ct-detail-sheet";
+import { Check, Eye, Trash2 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -68,7 +69,7 @@ export function CtsAccountsTab() {
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Pending Approval ({pending.length})</h2>
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
           <Table>
             <TableHeader>
               <TableRow>
@@ -88,21 +89,13 @@ export function CtsAccountsTab() {
                   <TableCell>{ct.user.phone}</TableCell>
                   <TableCell>{ct.school.name}</TableCell>
                   <TableCell>{new Date(ct.user.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell className="flex flex-col items-end gap-1 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleApprove(ct)}
-                      className="text-sm font-medium text-success hover:underline"
-                    >
-                      ✓ Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(ct.id, ct.user.name)}
-                      className="text-sm font-medium text-destructive hover:underline"
-                    >
-                      Delete
-                    </button>
+                  <TableCell className="flex justify-end gap-2 text-right">
+                    <Button size="sm" className="bg-success text-success-foreground hover:bg-success/90" onClick={() => handleApprove(ct)}>
+                      <Check /> Approve
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(ct.id, ct.user.name)}>
+                      <Trash2 /> Delete
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -123,7 +116,7 @@ export function CtsAccountsTab() {
         {isLoading ? (
           <Skeleton className="h-40 w-full" />
         ) : (
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -145,15 +138,14 @@ export function CtsAccountsTab() {
                     </TableCell>
                     <TableCell className="flex justify-end gap-2 text-right">
                       <Button variant="outline" size="sm" onClick={() => setViewingId(ct.id)}>
-                        View
+                        <Eye /> View
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="sm"
-                        className="text-destructive"
                         onClick={() => handleDelete(ct.id, ct.user.name)}
                       >
-                        Delete
+                        <Trash2 /> Delete
                       </Button>
                     </TableCell>
                   </TableRow>

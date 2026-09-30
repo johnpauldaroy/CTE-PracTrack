@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InternDtrTab } from "@/components/mobile/supervisor/intern-dtr-tab";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -64,7 +65,7 @@ export function InternDetailSheet({
                   <TabsTrigger value="documents">Documents</TabsTrigger>
                 </TabsList>
                 <TabsContent value="dtr" className="mt-4">
-                  <NotYetAvailable module="Attendance (DTR)" />
+                  <InternDtrTab internId={data.intern.id} />
                 </TabsContent>
                 <TabsContent value="sessions" className="mt-4">
                   <NotYetAvailable module="Teaching sessions" />

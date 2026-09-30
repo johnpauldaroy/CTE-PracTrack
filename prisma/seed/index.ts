@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { prisma } from "@/lib/prisma";
 import { seedConfigSingletons } from "./config";
 import { seedEvaluationInstrument } from "./evaluation-instrument";

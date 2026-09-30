@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { label: "Accounts", href: "/accounts" },
   { label: "Semesters", href: "/semesters" },
   { label: "Reports", href: "/reports" },
+  { label: "Audit Log", href: "/audit-log" },
   { label: "Settings", href: "/settings" },
 ];
 

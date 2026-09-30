@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import Link from "next/link";
+import { CheckCircle2, GraduationCap, LayoutDashboard } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SchoolOverviewTab } from "@/components/admin/schools/school-overview-tab";
@@ -41,9 +42,9 @@ export function SchoolDetail({ schoolId }: { schoolId: string }) {
 
       <Tabs defaultValue="overview">
         <TabsList className="grid w-full grid-cols-3 sm:w-fit">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="interns">Interns</TabsTrigger>
-          <TabsTrigger value="resolved-alerts">Resolved Alerts</TabsTrigger>
+          <TabsTrigger value="overview"><LayoutDashboard /> Overview</TabsTrigger>
+          <TabsTrigger value="interns"><GraduationCap /> Interns</TabsTrigger>
+          <TabsTrigger value="resolved-alerts"><CheckCircle2 /> Resolved Alerts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">

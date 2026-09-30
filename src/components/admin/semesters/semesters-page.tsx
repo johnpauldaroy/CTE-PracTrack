@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AcademicYearCard } from "@/components/admin/semesters/academic-year-card";
@@ -52,7 +53,7 @@ export function SemestersPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-3xl font-bold">Semesters</h1>
-        <Button onClick={() => setShowAddForm((v) => !v)}>+ Add Semester</Button>
+        <Button onClick={() => setShowAddForm((v) => !v)}><Plus /> Add Semester</Button>
       </div>
 
       {showAddForm && (

@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
-
-export default function AdminDashboardPage() {
-  redirect("/schools");
-}
+import Link from "next/link";
+import { requireRole } from "@/lib/session";
+import { getDashboard } from "@/lib/services/report-service";
+import { Badge } from "@/components/ui/badge";
+export default async function DashboardPage() { const data = await getDashboard(await requireRole("ADMIN")); return <div className="flex flex-col gap-6"><div><h1 className="font-heading text-2xl font-bold">Dashboard</h1><p className="text-sm text-muted-foreground">System-wide overview for the active shifting</p></div><div className="grid gap-4 md:grid-cols-4"><Tile label="Partner Schools" value={data.totals.schools} /><Tile label="Student Interns" value={data.totals.interns} /><Tile label="Absences" value={data.totals.absences} /><Tile label="Active Alerts" value={data.totals.activeAlerts} /></div><section><div className="mb-3 flex justify-between"><h2 className="font-heading text-lg font-bold">Requiring Attention</h2><Link className="text-sm text-primary underline" href="/reports">View reports</Link></div><div className="grid gap-3 md:grid-cols-2">{data.activeAlerts.map((alert) => <article key={alert.id} className="rounded-xl border bg-card p-4"><div className="flex justify-between"><p className="font-semibold">{alert.intern.user.name}</p><Badge variant={alert.severity === "HIGH" ? "destructive" : "secondary"}>{alert.severity}</Badge></div><p className="text-sm text-muted-foreground">{alert.intern.assignedSchool.name}</p><p className="mt-2 text-sm">{alert.detail}</p></article>)}{!data.activeAlerts.length && <p className="text-sm text-muted-foreground">No active alerts.</p>}</div></section></div>; }
+function Tile({ label, value }: { label: string; value: number }) { return <div className="rounded-xl border bg-card p-5"><p className="text-3xl font-bold">{value}</p><p className="text-sm text-muted-foreground">{label}</p></div>; }

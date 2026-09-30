@@ -1,0 +1,15 @@
+"use client";
+import { use, useState } from "react";
+import { useRouter } from "next/navigation";
+import useSWR from "swr";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+interface Criterion { id: string; name: string; weightPercent: string; items: { id: string; text: string }[] }
+export default function EvaluatePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params); const router = useRouter(); const { data } = useSWR<{ criteria: Criterion[] }>("/api/sessions/instrument", fetcher); const [ratings, setRatings] = useState<Record<string, number>>({}); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
+  async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const itemCount = data?.criteria.flatMap((c) => c.items).length ?? 0; if (Object.keys(ratings).length !== itemCount) return setError("Rate every evaluation item."); setBusy(true); const form = new FormData(event.currentTarget); const response = await fetch(`/api/sessions/${id}/evaluation`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ratings: Object.entries(ratings).map(([itemId, rating]) => ({ itemId, rating })), commendable: form.get("commendable"), areasForImprovement: form.get("areasForImprovement") }) }); const result = await response.json(); setBusy(false); if (!response.ok) return setError(result.error ?? "Unable to submit evaluation."); router.push("/m/ct/sessions"); router.refresh(); }
+  return <form onSubmit={submit} className="flex flex-col gap-5 p-4"><div><h1 className="font-heading text-xl font-bold">Session Evaluation</h1><p className="text-sm text-muted-foreground">Submission is final and electronically signed.</p></div>{data?.criteria.map((criterion) => <section key={criterion.id} className="rounded-xl border bg-card p-4"><h2 className="font-semibold">{criterion.name} ({Number(criterion.weightPercent)}%)</h2>{criterion.items.map((item) => <div key={item.id} className="mt-4"><Label>{item.text}</Label><div className="mt-2 grid grid-cols-5 gap-2">{[1,2,3,4,5].map((rating) => <button key={rating} type="button" onClick={() => setRatings((old) => ({ ...old, [item.id]: rating }))} className={`h-9 rounded-lg border text-sm ${ratings[item.id] === rating ? "bg-primary text-primary-foreground" : "bg-background"}`}>{rating}</button>)}</div></div>)}</section>)}<Field label="Commendable observations"><Textarea name="commendable" /></Field><Field label="Areas for improvement"><Textarea name="areasForImprovement" /></Field>{error && <p className="text-sm text-destructive">{error}</p>}<Button type="submit" disabled={busy}>{busy ? "Submitting…" : "Submit Final Evaluation"}</Button></form>;
+}
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="grid gap-2"><Label>{label}</Label>{children}</div>; }

@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EditInternSheet } from "@/components/admin/accounts/edit-intern-sheet";
 import { InternDetailSheet } from "@/components/admin/accounts/intern-detail-sheet";
 import { toast } from "sonner";
+import { Eye, Pencil, Search, Trash2 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -52,17 +53,15 @@ export function InternsAccountsTab() {
         edit, or remove accounts as needed.
       </p>
 
-      <Input
-        placeholder="Search by name or ID..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="max-w-sm"
-      />
+      <div className="relative max-w-sm">
+        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input placeholder="Search by name or ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 bg-card pl-9 shadow-xs" />
+      </div>
 
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
           <Table>
             <TableHeader>
               <TableRow>
@@ -82,18 +81,17 @@ export function InternsAccountsTab() {
                   <TableCell>{intern.assignedSchool.name}</TableCell>
                   <TableCell className="flex justify-end gap-2 text-right">
                     <Button variant="outline" size="sm" onClick={() => setViewingId(intern.id)}>
-                      View
+                      <Eye /> View
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setEditingId(intern.id)}>
-                      Edit
+                      <Pencil /> Edit
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="sm"
-                      className="text-destructive"
                       onClick={() => handleDelete(intern)}
                     >
-                      Delete
+                      <Trash2 /> Delete
                     </Button>
                   </TableCell>
                 </TableRow>

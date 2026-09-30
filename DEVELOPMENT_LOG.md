@@ -125,3 +125,12 @@ Append-only. One entry per work session, most recent first.
 **Still blocked on:** Supabase DB connection string(s) + service role key.
 
 **Next:** Geofenced attendance (step 9) — the load-bearing thesis feature and the biggest remaining piece of backend work. Time-in/time-out endpoints with server-side haversine + cutoff derivation, status computation, the DTR query, supervisor excuse marking, and the intern attendance UI, tested against the documented edge cases (just inside/outside radius, punch after cutoff, time-in with no time-out, double punch, punch outside the active shifting's date range).
+# 2026-09-30 — Remaining v1 modules implementation
+
+- Added the complete cooperating-teacher PWA surface with a session-scoped roster, session assignment, and immutable evaluation submission. Evaluation scores are derived from the active database instrument, session numbering is server-controlled, scope comes from the authenticated CT, and assignment/evaluation mutations create audit and in-app notification records.
+- Replaced the intern Sessions and Documents placeholders. Documents now upload to private Supabase Storage paths, validate type/size, retain replacement lineage, and use five-minute signed URLs. Added end-of-term submission uploads.
+- Added config-driven at-risk evaluation, active-alert deduplication, supervisor resolution with required notes, supervisor/admin dashboards, report tables and CSV exports, notification feed/push subscription capture, and an admin-only audit-log viewer.
+- Added supervisor/admin CT-to-intern assignment constrained to active CTs at the same school. Wired real DTR content into the admin intern-detail drawer.
+- Corrected the Alert model's invalid historical uniqueness design: uniqueness over `(intern, shifting, type, status)` allowed only one resolved occurrence forever, so application-level active deduplication now preserves repeat alert history.
+- Verification performed with Prisma Client generation, TypeScript, ESLint, and a production build. The pre-existing `dotenv/config` addition in `prisma/seed/index.ts` was preserved.
+
