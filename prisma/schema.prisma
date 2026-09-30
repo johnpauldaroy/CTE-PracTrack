@@ -4,9 +4,11 @@
 // and the evaluation instrument live in config tables, never in code.
 
 generator client {
-  provider      = "prisma-client"
-  output        = "../src/generated/prisma"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  // No native query engine: Turbopack rewrites __dirname to a virtual /ROOT
+  // path, so Prisma can't find a native .so.node binary on Vercel.
+  engineType = "client"
 }
 
 datasource db {
