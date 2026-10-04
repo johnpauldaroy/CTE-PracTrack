@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
-import { ForbiddenError } from "@/lib/session";
+import { ConflictError, ForbiddenError } from "@/lib/session";
 import { assertSchoolInScope, scopeToRole } from "@/lib/scope";
 import type { SessionUser } from "@/lib/auth";
 import type { CreateSchoolInput, UpdateSchoolInput } from "@/lib/validation/school";
@@ -15,9 +15,20 @@ export async function listSchools(user: SessionUser) {
     where: { ...scopeToRole.school(user), deletedAt: null },
     include: {
       supervisorProfile: { include: { user: true } },
-      _count: { select: { interns: true } },
+      // Deactivated (soft-deleted) intern accounts don't count as assigned.
+      _count: { select: { interns: { where: { user: { deletedAt: null } } } } },
     },
     orderBy: [{ type: "asc" }, { name: "asc" }],
+  });
+}
+
+/** Soft-deleted schools, newest first, for the "Recently deleted" list (admin only). */
+export async function listDeletedSchools(actor: SessionUser) {
+  requireAdmin(actor);
+  return prisma.school.findMany({
+    where: { deletedAt: { not: null } },
+    select: { id: true, name: true, type: true, municipality: true, deletedAt: true },
+    orderBy: { deletedAt: "desc" },
   });
 }
 
@@ -180,30 +191,94 @@ export async function assignSupervisor(actor: SessionUser, schoolId: string, sup
   });
 }
 
-/** Deleting a school with assigned interns is blocked (PRD §6.2); it must be emptied first. */
+/**
+ * Soft-deletes a school: it disappears from every list and picker but its
+ * rows (attendance, alerts, supervisor history) stay intact, and it can be
+ * restored. Blocked while active interns or cooperating teachers still belong
+ * to it (PRD §6.2) — they must be reassigned or removed first. Its supervisor
+ * is unassigned in the same transaction so they don't point at a hidden school.
+ */
 export async function deleteSchool(actor: SessionUser, schoolId: string) {
   requireAdmin(actor);
 
   return prisma.$transaction(async (tx) => {
-    const school = await tx.school.findFirstOrThrow({
+    const school = await tx.school.findFirst({
       where: { id: schoolId, deletedAt: null },
-      include: { _count: { select: { interns: true } } },
+      include: {
+        supervisorProfile: { include: { user: { select: { id: true, name: true } } } },
+        _count: {
+          select: {
+            interns: { where: { user: { deletedAt: null } } },
+            cts: { where: { user: { deletedAt: null } } },
+          },
+        },
+      },
     });
+    if (!school) throw new ConflictError("This school no longer exists or was already deleted.");
 
-    if (school._count.interns > 0) {
-      throw new Error(
-        `Cannot delete ${school.name}: ${school._count.interns} intern(s) are still assigned. Unassign or reassign them first.`,
+    const blockers = [
+      school._count.interns ? `${school._count.interns} intern(s)` : null,
+      school._count.cts ? `${school._count.cts} cooperating teacher(s)` : null,
+    ].filter(Boolean);
+    if (blockers.length) {
+      throw new ConflictError(
+        `Cannot delete ${school.name}: ${blockers.join(" and ")} still belong to it. Reassign or remove them first.`,
       );
+    }
+
+    if (school.supervisorProfile) {
+      await tx.supervisorProfile.update({ where: { id: school.supervisorProfile.id }, data: { schoolId: null } });
+      await tx.schoolSupervisorHistory.updateMany({
+        where: { schoolId, unassignedAt: null },
+        data: { unassignedAt: new Date() },
+      });
     }
 
     const deleted = await tx.school.update({ where: { id: schoolId }, data: { deletedAt: new Date() } });
 
     await writeAuditLog(
-      { actor, action: "SCHOOL_DELETE", entityType: "School", entityId: schoolId },
+      {
+        actor,
+        action: "SCHOOL_DELETE",
+        entityType: "School",
+        entityId: schoolId,
+        diff: {
+          before: {
+            ...serializeSchool(school),
+            supervisorName: school.supervisorProfile?.user.name ?? null,
+          },
+          after: { deleted: true, supervisorUnassigned: !!school.supervisorProfile },
+        } as unknown as Prisma.InputJsonValue,
+      },
       tx,
     );
 
     return deleted;
+  });
+}
+
+/** Undoes a soft delete. The previous supervisor is not re-linked; assign one again if needed. */
+export async function restoreSchool(actor: SessionUser, schoolId: string) {
+  requireAdmin(actor);
+
+  return prisma.$transaction(async (tx) => {
+    const school = await tx.school.findFirst({ where: { id: schoolId, deletedAt: { not: null } } });
+    if (!school) throw new ConflictError("This school isn't in the deleted list.");
+
+    const restored = await tx.school.update({ where: { id: schoolId }, data: { deletedAt: null } });
+
+    await writeAuditLog(
+      {
+        actor,
+        action: "SCHOOL_RESTORE",
+        entityType: "School",
+        entityId: schoolId,
+        diff: { before: { deleted: true }, after: { deleted: false, name: restored.name } } as unknown as Prisma.InputJsonValue,
+      },
+      tx,
+    );
+
+    return restored;
   });
 }
 

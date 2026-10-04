@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { MapPin, Pencil, X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SchoolDetailData } from "@/components/admin/schools/school-detail";
+import { LocationMap } from "@/components/maps/location-map";
+import { EditSchoolSheet } from "@/components/admin/schools/edit-school-sheet";
+import { DeleteSchoolDialog } from "@/components/admin/schools/delete-school-dialog";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -35,6 +39,9 @@ export function SchoolOverviewTab({
     fetcher,
   );
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isEditingSchool, setIsEditingSchool] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   const internCount = internsData?.interns.length ?? 0;
   // "Flagged" = interns with at least one ACTIVE alert, so it agrees with the dashboards.
@@ -144,9 +151,20 @@ export function SchoolOverviewTab({
 
       <Card>
         <CardContent className="flex flex-col gap-3 p-5">
-          <h3 className="font-semibold">Location</h3>
-          <div className="flex items-center justify-center rounded-lg border border-dashed bg-muted/50 py-10">
-            <MapPin className="size-6 text-muted-foreground" />
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Location</h3>
+            <Button variant="outline" size="sm" onClick={() => setIsEditingSchool(true)}>
+              <Pencil /> Edit
+            </Button>
+          </div>
+          <div className="h-56 overflow-hidden rounded-lg border">
+            <LocationMap
+              latitude={Number(school.latitude)}
+              longitude={Number(school.longitude)}
+              radiusMeters={school.geofenceRadiusMeters}
+              readOnly
+              className="h-full w-full"
+            />
           </div>
           <p className="text-center text-sm text-muted-foreground">
             {Number(school.latitude).toFixed(4)}°N, {Number(school.longitude).toFixed(4)}°E ·{" "}
@@ -215,6 +233,28 @@ export function SchoolOverviewTab({
           )}
         </CardContent>
       </Card>
+      <Card className="border-destructive/30">
+        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-semibold">Delete School</h3>
+            <p className="text-sm text-muted-foreground">
+              Hides the school everywhere and unassigns its supervisor. History is kept and it can be restored.
+            </p>
+          </div>
+          <Button variant="destructive" size="sm" onClick={() => setIsDeleting(true)}>
+            <Trash2 /> Delete school
+          </Button>
+        </CardContent>
+      </Card>
+
+      <EditSchoolSheet school={school} open={isEditingSchool} onOpenChange={setIsEditingSchool} onSaved={onChanged} />
+      <DeleteSchoolDialog
+        school={school}
+        internCount={internsData ? internCount : undefined}
+        open={isDeleting}
+        onOpenChange={setIsDeleting}
+        onDeleted={() => router.push("/schools")}
+      />
     </div>
   );
 }
