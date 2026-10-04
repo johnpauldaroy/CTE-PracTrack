@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/session";
 import { getReports } from "@/lib/services/report-service";
+import { formatManila } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarCheck, ClipboardList, Download, ShieldCheck } from "lucide-react";
@@ -65,7 +66,7 @@ export default async function ReportsPage() {
           <ReportTable
             headers={["Date", "School", "Intern", "Flag", "Resolved By", "Note"]}
             rows={data.resolvedAlerts.map((r) => [
-              r.resolvedAt?.toLocaleDateString() ?? "—",
+              r.resolvedAt ? formatManila(r.resolvedAt, "MMM d, yyyy") : "—",
               r.intern.assignedSchool.name,
               r.intern.user.name,
               r.type,

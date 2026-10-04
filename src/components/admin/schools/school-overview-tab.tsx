@@ -30,7 +30,7 @@ export function SchoolOverviewTab({
     "/api/supervisors",
     fetcher,
   );
-  const { data: internsData } = useSWR<{ interns: { absences: number; isFlagged: boolean }[] }>(
+  const { data: internsData } = useSWR<{ interns: { absences: number; isFlagged: boolean; timedInToday: boolean }[] }>(
     `/api/schools/${school.id}/interns`,
     fetcher,
   );
@@ -39,6 +39,7 @@ export function SchoolOverviewTab({
   const internCount = internsData?.interns.length ?? 0;
   // "Flagged" = interns with at least one ACTIVE alert, so it agrees with the dashboards.
   const flaggedCount = internsData?.interns.filter((i) => i.isFlagged).length ?? 0;
+  const presentTodayCount = internsData?.interns.filter((i) => i.timedInToday).length ?? 0;
 
   async function handleAssign(supervisorUserId: string) {
     setIsAssigning(true);
@@ -60,8 +61,12 @@ export function SchoolOverviewTab({
     }
   }
 
-  const effectiveTimeIn = school.timeInCutoff ?? "using global default";
-  const effectiveTimeOut = school.timeOutStart ?? "using global default";
+  const { data: globalCheckIn } = useSWR<{ config: { timeInCutoff: string; timeOutStart: string } }>(
+    "/api/config/check-in",
+    fetcher,
+  );
+  const effectiveTimeIn = school.timeInCutoff ?? globalCheckIn?.config.timeInCutoff ?? "…";
+  const effectiveTimeOut = school.timeOutStart ?? globalCheckIn?.config.timeOutStart ?? "…";
 
   const [isEditingCheckIn, setIsEditingCheckIn] = useState(false);
   const [overrideTimeIn, setOverrideTimeIn] = useState(school.timeInCutoff ?? "");
@@ -97,7 +102,7 @@ export function SchoolOverviewTab({
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Interns" value={internCount} />
-        <StatCard label="Present Today" value="—" tone="success" />
+        <StatCard label="Present Today" value={internsData ? `${presentTodayCount} / ${internCount}` : "—"} tone="success" />
         <StatCard label="Flagged" value={flaggedCount} tone="warning" />
       </div>
 
@@ -116,6 +121,8 @@ export function SchoolOverviewTab({
               value={school.supervisorProfile?.user.id ?? undefined}
               onValueChange={(value) => value && handleAssign(value)}
               disabled={isAssigning}
+              // Without `items`, the trigger renders the raw user id instead of the supervisor's name.
+              items={Object.fromEntries((supervisorsData?.supervisors ?? []).map((s) => [s.id, s.name]))}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Change Supervisor" />
@@ -166,14 +173,14 @@ export function SchoolOverviewTab({
                 <span className={school.timeInCutoff ? "text-foreground font-medium" : ""}>
                   {effectiveTimeIn}
                 </span>
-                {!school.timeInCutoff && " (using global default)"}
+                {!school.timeInCutoff && " (global default)"}
               </p>
               <p className="text-sm text-muted-foreground">
                 Time Out start:{" "}
                 <span className={school.timeOutStart ? "text-foreground font-medium" : ""}>
                   {effectiveTimeOut}
                 </span>
-                {!school.timeOutStart && " (using global default)"}
+                {!school.timeOutStart && " (global default)"}
               </p>
             </>
           ) : (

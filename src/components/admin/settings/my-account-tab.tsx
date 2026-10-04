@@ -6,7 +6,7 @@ import { Lock, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import type { SessionUser } from "@/lib/auth";
 
@@ -85,9 +85,8 @@ export function MyAccountTab({ user }: { user: SessionUser }) {
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="current-pw">Current Password</Label>
-                <Input
+                <PasswordInput
                   id="current-pw"
-                  type="password"
                   required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
@@ -98,9 +97,8 @@ export function MyAccountTab({ user }: { user: SessionUser }) {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="new-pw">New Password</Label>
-                <Input
+                <PasswordInput
                   id="new-pw"
-                  type="password"
                   required
                   minLength={8}
                   value={newPassword}
@@ -110,9 +108,8 @@ export function MyAccountTab({ user }: { user: SessionUser }) {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="confirm-pw">Confirm New Password</Label>
-                <Input
+                <PasswordInput
                   id="confirm-pw"
-                  type="password"
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
