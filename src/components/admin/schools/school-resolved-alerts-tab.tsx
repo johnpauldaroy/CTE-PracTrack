@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import { formatManila } from "@/lib/timezone";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -35,7 +36,7 @@ export function SchoolResolvedAlertsTab({ schoolId }: { schoolId: string }) {
         <Card key={alert.id}>
           <CardContent className="flex flex-col gap-1 p-5">
             <p className="text-xs text-muted-foreground">
-              {alert.resolvedAt ? new Date(alert.resolvedAt).toLocaleString() : ""}
+              {alert.resolvedAt ? formatManila(new Date(alert.resolvedAt), "MMM d, yyyy h:mm a") : ""}
             </p>
             <p className="font-semibold">{alert.intern.user.name}</p>
             <p className="text-sm text-muted-foreground">Flag: {alert.detail}</p>

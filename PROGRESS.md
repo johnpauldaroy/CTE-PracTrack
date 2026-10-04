@@ -4,6 +4,15 @@ Tracks status against the `MASTER_PROMPT.md` build order. Update this file (stat
 
 Status values: **Not started** / **In progress** / **Blocked** / **Done**
 
+## 2026-10-04 tester-concerns enhancement pass
+
+Implemented every item in `ENHANCEMENT_PLAN.md` (from `Concerns-PracTrack.docx`). See that file's "Implementation status" for commits, deployment steps (SQL upgrade script, `CRON_SECRET`), and the decisions taken. Highlights:
+- At-risk alerts now run automatically (daily Vercel Cron, dashboard freshness check, after excuses/evaluations/rule changes) with a partial unique index preventing duplicate active alerts.
+- Admin notification bell/panel/page, unread badges for every role, admin notifications for pending CTs and HIGH alerts.
+- Leaflet/OSM school map picker, editable school location, soft delete + restore for schools.
+- Plain-language, filterable, paginated audit log; read-only shifting archive; reports by shifting; archive academic year.
+- Password show/hide toggle; Select triggers show names instead of ids; Present Today; Manila timestamps.
+
 ## 2026-09-30 implementation reconciliation
 
 The table below predates several completed modules. Current source-of-truth status after a full code audit:

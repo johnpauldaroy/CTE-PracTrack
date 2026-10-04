@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { UnauthorizedError, ForbiddenError } from "@/lib/session";
+import { UnauthorizedError, ForbiddenError, ConflictError } from "@/lib/session";
 
 /**
  * Converts a thrown error into the right HTTP response. Zod errors become a
@@ -19,6 +19,9 @@ export function toApiErrorResponse(error: unknown): NextResponse {
   }
   if (error instanceof ForbiddenError) {
     return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+  if (error instanceof ConflictError) {
+    return NextResponse.json({ error: error.message }, { status: 409 });
   }
   if (error instanceof Error) {
     console.error(error);

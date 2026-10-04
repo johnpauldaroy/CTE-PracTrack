@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Archive, Check, Pencil } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,13 +24,44 @@ export function AcademicYearCard({
   year,
   onConfigureShifting,
   onActivated,
+  onArchived,
 }: {
   year: AcademicYearData;
   onConfigureShifting: (shiftingId: string) => void;
   onActivated: () => void;
+  onArchived: () => void;
 }) {
+  const [isArchiving, setIsArchiving] = useState(false);
+  const shiftings = year.semesters.flatMap((semester) => semester.shiftings);
+  const canArchive = shiftings.length > 0 && shiftings.every((shifting) => shifting.status === "COMPLETED");
+
+  async function handleArchive() {
+    if (!confirm(`Archive Academic Year ${year.label}? It moves to Archived Academic Years (read-only). No records are changed.`)) return;
+    setIsArchiving(true);
+    try {
+      const res = await fetch(`/api/academic-years/${year.id}/archive`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not archive the academic year.");
+        return;
+      }
+      toast.success(`Academic Year ${year.label} archived.`);
+      onArchived();
+    } finally {
+      setIsArchiving(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      {canArchive && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/50 px-4 py-3 text-sm">
+          <span>Every shifting in Academic Year {year.label} is completed.</span>
+          <Button variant="outline" size="sm" onClick={handleArchive} disabled={isArchiving}>
+            <Archive /> {isArchiving ? "Archiving…" : "Archive academic year"}
+          </Button>
+        </div>
+      )}
       {year.semesters.map((semester) => {
         const activeShifting = semester.shiftings.find((s) => s.status === "ACTIVE");
         return (
@@ -115,7 +147,7 @@ function ShiftingCard({
 
       <div className="mt-3 flex gap-2">
         {shifting.status === "COMPLETED" ? (
-          <Button variant="outline" size="sm" disabled>
+          <Button variant="outline" size="sm" render={<Link href={`/semesters/shiftings/${shifting.id}`} />}>
             <Archive /> View Archive
           </Button>
         ) : (

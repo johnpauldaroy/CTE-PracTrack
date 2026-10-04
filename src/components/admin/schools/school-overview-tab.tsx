@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { MapPin, Pencil, X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SchoolDetailData } from "@/components/admin/schools/school-detail";
+import { LocationMap } from "@/components/maps/location-map";
+import { EditSchoolSheet } from "@/components/admin/schools/edit-school-sheet";
+import { DeleteSchoolDialog } from "@/components/admin/schools/delete-school-dialog";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -30,14 +34,19 @@ export function SchoolOverviewTab({
     "/api/supervisors",
     fetcher,
   );
-  const { data: internsData } = useSWR<{ interns: { absences: number }[] }>(
+  const { data: internsData } = useSWR<{ interns: { absences: number; isFlagged: boolean; timedInToday: boolean }[] }>(
     `/api/schools/${school.id}/interns`,
     fetcher,
   );
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isEditingSchool, setIsEditingSchool] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   const internCount = internsData?.interns.length ?? 0;
-  const flaggedCount = internsData?.interns.filter((i) => i.absences > 0).length ?? 0;
+  // "Flagged" = interns with at least one ACTIVE alert, so it agrees with the dashboards.
+  const flaggedCount = internsData?.interns.filter((i) => i.isFlagged).length ?? 0;
+  const presentTodayCount = internsData?.interns.filter((i) => i.timedInToday).length ?? 0;
 
   async function handleAssign(supervisorUserId: string) {
     setIsAssigning(true);
@@ -59,8 +68,12 @@ export function SchoolOverviewTab({
     }
   }
 
-  const effectiveTimeIn = school.timeInCutoff ?? "using global default";
-  const effectiveTimeOut = school.timeOutStart ?? "using global default";
+  const { data: globalCheckIn } = useSWR<{ config: { timeInCutoff: string; timeOutStart: string } }>(
+    "/api/config/check-in",
+    fetcher,
+  );
+  const effectiveTimeIn = school.timeInCutoff ?? globalCheckIn?.config.timeInCutoff ?? "…";
+  const effectiveTimeOut = school.timeOutStart ?? globalCheckIn?.config.timeOutStart ?? "…";
 
   const [isEditingCheckIn, setIsEditingCheckIn] = useState(false);
   const [overrideTimeIn, setOverrideTimeIn] = useState(school.timeInCutoff ?? "");
@@ -96,7 +109,7 @@ export function SchoolOverviewTab({
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Interns" value={internCount} />
-        <StatCard label="Present Today" value="—" tone="success" />
+        <StatCard label="Present Today" value={internsData ? `${presentTodayCount} / ${internCount}` : "—"} tone="success" />
         <StatCard label="Flagged" value={flaggedCount} tone="warning" />
       </div>
 
@@ -115,6 +128,8 @@ export function SchoolOverviewTab({
               value={school.supervisorProfile?.user.id ?? undefined}
               onValueChange={(value) => value && handleAssign(value)}
               disabled={isAssigning}
+              // Without `items`, the trigger renders the raw user id instead of the supervisor's name.
+              items={Object.fromEntries((supervisorsData?.supervisors ?? []).map((s) => [s.id, s.name]))}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Change Supervisor" />
@@ -136,9 +151,20 @@ export function SchoolOverviewTab({
 
       <Card>
         <CardContent className="flex flex-col gap-3 p-5">
-          <h3 className="font-semibold">Location</h3>
-          <div className="flex items-center justify-center rounded-lg border border-dashed bg-muted/50 py-10">
-            <MapPin className="size-6 text-muted-foreground" />
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Location</h3>
+            <Button variant="outline" size="sm" onClick={() => setIsEditingSchool(true)}>
+              <Pencil /> Edit
+            </Button>
+          </div>
+          <div className="h-56 overflow-hidden rounded-lg border">
+            <LocationMap
+              latitude={Number(school.latitude)}
+              longitude={Number(school.longitude)}
+              radiusMeters={school.geofenceRadiusMeters}
+              readOnly
+              className="h-full w-full"
+            />
           </div>
           <p className="text-center text-sm text-muted-foreground">
             {Number(school.latitude).toFixed(4)}°N, {Number(school.longitude).toFixed(4)}°E ·{" "}
@@ -165,14 +191,14 @@ export function SchoolOverviewTab({
                 <span className={school.timeInCutoff ? "text-foreground font-medium" : ""}>
                   {effectiveTimeIn}
                 </span>
-                {!school.timeInCutoff && " (using global default)"}
+                {!school.timeInCutoff && " (global default)"}
               </p>
               <p className="text-sm text-muted-foreground">
                 Time Out start:{" "}
                 <span className={school.timeOutStart ? "text-foreground font-medium" : ""}>
                   {effectiveTimeOut}
                 </span>
-                {!school.timeOutStart && " (using global default)"}
+                {!school.timeOutStart && " (global default)"}
               </p>
             </>
           ) : (
@@ -207,6 +233,28 @@ export function SchoolOverviewTab({
           )}
         </CardContent>
       </Card>
+      <Card className="border-destructive/30">
+        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-semibold">Delete School</h3>
+            <p className="text-sm text-muted-foreground">
+              Hides the school everywhere and unassigns its supervisor. History is kept and it can be restored.
+            </p>
+          </div>
+          <Button variant="destructive" size="sm" onClick={() => setIsDeleting(true)}>
+            <Trash2 /> Delete school
+          </Button>
+        </CardContent>
+      </Card>
+
+      <EditSchoolSheet school={school} open={isEditingSchool} onOpenChange={setIsEditingSchool} onSaved={onChanged} />
+      <DeleteSchoolDialog
+        school={school}
+        internCount={internsData ? internCount : undefined}
+        open={isDeleting}
+        onOpenChange={setIsDeleting}
+        onDeleted={() => router.push("/schools")}
+      />
     </div>
   );
 }

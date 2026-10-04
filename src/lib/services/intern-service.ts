@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { scopeToRole } from "@/lib/scope";
 import { materializeAttendanceRecords } from "@/lib/services/dtr-service";
+import { todayManilaDateOnly } from "@/lib/timezone";
 import type { SessionUser } from "@/lib/auth";
 
 /** Interns for one school, with session/absence counts for the active shifting. */
@@ -25,6 +26,8 @@ export async function listInternsForSchool(user: SessionUser, schoolId: string, 
     orderBy: { schoolNumber: "asc" },
   });
 
+  const today = todayManilaDateOnly().getTime();
+
   return interns.map((intern) => {
     const regularSessions = shiftingId
       ? intern.teachingSessions.filter((s) => s.type === "REGULAR").length
@@ -38,6 +41,10 @@ export async function listInternsForSchool(user: SessionUser, schoolId: string, 
       ? intern.alerts.some((alert) => alert.type === "BEHIND_PACE")
       : false;
     const isFlagged = shiftingId ? intern.alerts.length > 0 : false;
+    // "Present today" = timed in today (Asia/Manila day), whether on time, late, or not yet timed out.
+    const timedInToday = shiftingId
+      ? intern.attendanceRecords.some((record) => record.date.getTime() === today && record.timeIn !== null)
+      : false;
 
     return {
       id: intern.id,
@@ -50,6 +57,7 @@ export async function listInternsForSchool(user: SessionUser, schoolId: string, 
       absences,
       isBehind,
       isFlagged,
+      timedInToday,
     };
   });
 }

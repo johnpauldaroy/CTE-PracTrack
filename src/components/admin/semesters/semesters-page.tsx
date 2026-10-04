@@ -43,6 +43,7 @@ export function SemestersPage() {
   );
   const [showAddForm, setShowAddForm] = useState(false);
   const [configuringShiftingId, setConfiguringShiftingId] = useState<string | null>(null);
+  const [archivedVersion, setArchivedVersion] = useState(0);
 
   const configuringShifting = data?.academicYears
     .flatMap((y) => y.semesters)
@@ -76,6 +77,10 @@ export function SemestersPage() {
               year={year}
               onConfigureShifting={setConfiguringShiftingId}
               onActivated={() => mutate()}
+              onArchived={() => {
+                mutate();
+                setArchivedVersion((v) => v + 1);
+              }}
             />
           ))}
           {data?.academicYears.length === 0 && (
@@ -84,7 +89,7 @@ export function SemestersPage() {
         </div>
       )}
 
-      <ArchivedAcademicYears />
+      <ArchivedAcademicYears version={archivedVersion} />
 
       <ConfigureShiftingDialog
         shifting={configuringShifting ?? null}

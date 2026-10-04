@@ -95,7 +95,11 @@ export function CtRegistrationForm() {
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="ct-school">School</Label>
-        <Select value={schoolId} onValueChange={(value) => setSchoolId(value ?? "")}>
+        <Select
+          value={schoolId}
+          onValueChange={(value) => setSchoolId(value ?? "")}
+          items={Object.fromEntries(schools.map((school) => [school.id, school.name]))}
+        >
           <SelectTrigger id="ct-school" className="w-full">
             <SelectValue placeholder="Select your school..." />
           </SelectTrigger>

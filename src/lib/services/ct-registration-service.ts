@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { notifyAdmins } from "@/lib/services/notification-service";
 import type { CtRegistrationInput } from "@/lib/validation/ct-registration";
 
 /**
@@ -26,19 +27,32 @@ export async function registerCooperatingTeacher(input: CtRegistrationInput) {
   const temporaryPassword = crypto.randomBytes(9).toString("base64url");
   const passwordHash = await bcrypt.hash(temporaryPassword, 10);
 
-  const user = await prisma.user.create({
-    data: {
-      email: input.email,
-      passwordHash,
-      role: "COOPERATING_TEACHER",
-      status: "PENDING",
-      name: input.name,
-      phone: input.phone,
-      ctProfile: {
-        create: { schoolId: input.schoolId },
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email: input.email,
+        passwordHash,
+        role: "COOPERATING_TEACHER",
+        status: "PENDING",
+        name: input.name,
+        phone: input.phone,
+        ctProfile: {
+          create: { schoolId: input.schoolId },
+        },
       },
-    },
-  });
+      include: { ctProfile: { include: { school: { select: { name: true } } } } },
+    });
 
-  return user;
+    await notifyAdmins(
+      {
+        type: "CT_REGISTRATION_PENDING",
+        title: "New cooperating teacher registration",
+        body: `${user.name} (${user.ctProfile?.school.name ?? "unknown school"}) is waiting for approval.`,
+        href: "/accounts?tab=cts",
+      },
+      tx,
+    );
+
+    return user;
+  });
 }

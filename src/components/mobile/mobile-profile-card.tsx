@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import type { SessionUser } from "@/lib/auth";
 
@@ -80,9 +80,8 @@ export function MobileProfileCard({ user }: { user: SessionUser }) {
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="m-current-pw">Current Password</Label>
-                <Input
+                <PasswordInput
                   id="m-current-pw"
-                  type="password"
                   required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
@@ -93,9 +92,8 @@ export function MobileProfileCard({ user }: { user: SessionUser }) {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="m-new-pw">New Password</Label>
-                <Input
+                <PasswordInput
                   id="m-new-pw"
-                  type="password"
                   required
                   minLength={8}
                   value={newPassword}
@@ -105,9 +103,8 @@ export function MobileProfileCard({ user }: { user: SessionUser }) {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="m-confirm-pw">Confirm New Password</Label>
-                <Input
+                <PasswordInput
                   id="m-confirm-pw"
-                  type="password"
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}

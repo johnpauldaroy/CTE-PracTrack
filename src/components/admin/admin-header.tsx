@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -12,6 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { NotificationList } from "@/components/notifications/notification-list";
+import { NotificationBellBadge } from "@/components/notifications/notification-bell-badge";
 import type { SessionUser } from "@/lib/auth";
 
 const NAV_ITEMS = [
@@ -34,8 +38,9 @@ function initials(name: string) {
   return letters || name.slice(0, 2).toUpperCase();
 }
 
-export function AdminHeader({ user, unreadCount = 0 }: { user: SessionUser; unreadCount?: number }) {
+export function AdminHeader({ user }: { user: SessionUser }) {
   const pathname = usePathname();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   return (
     <header className="border-b-2 border-primary bg-card">
@@ -63,18 +68,28 @@ export function AdminHeader({ user, unreadCount = 0 }: { user: SessionUser; unre
         </nav>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="relative flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            aria-label="Notifications"
-          >
-            <Bell className="size-5" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </button>
+          <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+            <PopoverTrigger
+              className="relative flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              aria-label="Notifications"
+            >
+              <Bell className="size-5" />
+              <NotificationBellBadge />
+            </PopoverTrigger>
+            <PopoverContent align="end" className="flex max-h-[min(40rem,var(--available-height))] w-[min(24rem,calc(100vw-2rem))] flex-col gap-2 overflow-hidden">
+              <PopoverTitle>Notifications</PopoverTitle>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <NotificationList limit={6} compact onNavigate={() => setNotificationsOpen(false)} />
+              </div>
+              <Link
+                href="/notifications"
+                onClick={() => setNotificationsOpen(false)}
+                className="pt-1 text-center text-sm font-medium text-primary hover:underline"
+              >
+                View all notifications
+              </Link>
+            </PopoverContent>
+          </Popover>
 
           <DropdownMenu>
             <DropdownMenuTrigger render={<button type="button" className="rounded-full" />}>

@@ -15,6 +15,14 @@ export class ForbiddenError extends Error {
   }
 }
 
+/** The request is valid but conflicts with current state (e.g. deleting a school that still has interns). */
+export class ConflictError extends Error {
+  constructor(message = "Conflict") {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
 /**
  * Every API route and server action that touches scoped data calls this
  * first. There is no other way to obtain the acting user's identity — role
