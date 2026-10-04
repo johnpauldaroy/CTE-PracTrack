@@ -138,7 +138,7 @@ Absences are also **derived from missing records** (`materializeAttendanceRecord
    - Write the audit entry with a `before` snapshot of the school.
    - Throw a typed `ConflictError` → **409** with the message (add it to `api-error.ts`).
 3. **Restore**: a "Recently deleted" collapsible on `/schools` with **Restore** (`restoreSchool`, audit `SCHOOL_RESTORE`). This fixes a mistaken delete without anyone touching the database.
-4. Make sure the public school list (CT registration) and every school picker already filter `deletedAt: null` (they do in `listSchools`; verify `/api/public/schools`).
+4. Deleted schools already drop out of every list: `listSchools` and `/api/public/schools` (CT registration) both filter `deletedAt: null`.
 
 **Files:** `school-service.ts`, `src/app/api/schools/[id]/route.ts`, `src/app/api/schools/[id]/restore/route.ts` (new), `src/lib/api-error.ts`, `school-detail.tsx`, `schools-list.tsx`, `delete-school-dialog.tsx` (new).
 
