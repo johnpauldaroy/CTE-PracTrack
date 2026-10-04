@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,10 +9,10 @@ import type { AcademicYearData } from "@/components/admin/semesters/semesters-pa
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export function ArchivedAcademicYears() {
+export function ArchivedAcademicYears({ version = 0 }: { version?: number }) {
   const [expanded, setExpanded] = useState(false);
   const { data } = useSWR<{ academicYears: AcademicYearData[] }>(
-    expanded ? "/api/academic-years/archived" : null,
+    expanded ? `/api/academic-years/archived?v=${version}` : null,
     fetcher,
   );
 
@@ -30,19 +31,22 @@ export function ArchivedAcademicYears() {
         <div className="flex flex-col gap-3">
           {data?.academicYears.map((year) => (
             <Card key={year.id}>
-              <CardContent className="flex items-center justify-between p-4">
-                <div>
-                  <p className="font-medium">Academic Year {year.label}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {year.semesters
-                      .map(
-                        (s) =>
-                          `${s.name} — ${s.shiftings.map((sh) => `${sh.name === "FIRST" ? "First" : "Second"} Shifting: ${sh.status === "COMPLETED" ? "Completed" : sh.status}`).join(" · ")}`,
-                      )
-                      .join(" · ")}
-                  </p>
-                </div>
-                <span className="text-sm font-medium text-secondary">View Archive</span>
+              <CardContent className="flex flex-col gap-3 p-4">
+                <p className="font-medium">Academic Year {year.label}</p>
+                {year.semesters.map((semester) => (
+                  <div key={semester.id} className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">{semester.name}:</span>
+                    {semester.shiftings.map((shifting) => (
+                      <Link
+                        key={shifting.id}
+                        href={`/semesters/shiftings/${shifting.id}`}
+                        className="rounded-md border px-2 py-1 font-medium text-secondary hover:bg-muted"
+                      >
+                        {shifting.name === "FIRST" ? "First" : "Second"} Shifting archive
+                      </Link>
+                    ))}
+                  </div>
+                ))}
               </CardContent>
             </Card>
           ))}

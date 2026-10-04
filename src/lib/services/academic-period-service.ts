@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
-import { ForbiddenError } from "@/lib/session";
+import { ConflictError, ForbiddenError } from "@/lib/session";
 import type { SessionUser } from "@/lib/auth";
 import type { CreateSemesterInput, ConfigureShiftingInput } from "@/lib/validation/shifting";
 import type { Prisma } from "@/generated/prisma/client";
@@ -164,5 +164,43 @@ export async function activateShifting(actor: SessionUser, shiftingId: string) {
     );
 
     return activated;
+  });
+}
+
+/**
+ * Moves an academic year into the read-only "Archived Academic Years" list.
+ * Only allowed once every shifting in it is COMPLETED — an archived year must
+ * never contain the active (or a still-upcoming) shifting. Archiving changes no
+ * historical rows; it's a display flag.
+ */
+export async function archiveAcademicYear(actor: SessionUser, academicYearId: string) {
+  requireAdmin(actor);
+
+  return prisma.$transaction(async (tx) => {
+    const year = await tx.academicYear.findUnique({
+      where: { id: academicYearId },
+      include: { semesters: { include: { shiftings: { select: { status: true } } } } },
+    });
+    if (!year) throw new ConflictError("Academic year not found.");
+    if (year.isArchived) throw new ConflictError(`Academic Year ${year.label} is already archived.`);
+    const shiftings = year.semesters.flatMap((semester) => semester.shiftings);
+    if (!shiftings.length || shiftings.some((shifting) => shifting.status !== "COMPLETED")) {
+      throw new ConflictError(`Academic Year ${year.label} can be archived only after all of its shiftings are completed.`);
+    }
+
+    const archived = await tx.academicYear.update({ where: { id: academicYearId }, data: { isArchived: true } });
+
+    await writeAuditLog(
+      {
+        actor,
+        action: "ACADEMIC_YEAR_ARCHIVE",
+        entityType: "AcademicYear",
+        entityId: academicYearId,
+        diff: { before: { isArchived: false }, after: { isArchived: true } } as unknown as Prisma.InputJsonValue,
+      },
+      tx,
+    );
+
+    return archived;
   });
 }

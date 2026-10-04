@@ -273,7 +273,7 @@ export async function restoreSchool(actor: SessionUser, schoolId: string) {
         action: "SCHOOL_RESTORE",
         entityType: "School",
         entityId: schoolId,
-        diff: { before: { deleted: true }, after: { deleted: false, name: restored.name } } as unknown as Prisma.InputJsonValue,
+        diff: { before: { deleted: true }, after: { deleted: false } } as unknown as Prisma.InputJsonValue,
       },
       tx,
     );

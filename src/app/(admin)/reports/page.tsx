@@ -1,110 +1,52 @@
 import { requireRole } from "@/lib/session";
-import { getReports } from "@/lib/services/report-service";
-import { formatManila } from "@/lib/timezone";
+import { getReports, listReportableShiftings } from "@/lib/services/report-service";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarCheck, ClipboardList, Download, ShieldCheck } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { ReportDownloads, ShiftingReport, shiftingLabel } from "@/components/admin/reports/shifting-report";
 
-export default async function ReportsPage() {
-  const data = await getReports(await requireRole("ADMIN"));
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ shiftingId?: string }> }) {
+  const actor = await requireRole("ADMIN");
+  const { shiftingId } = await searchParams;
+  const [data, shiftings] = await Promise.all([getReports(actor, { shiftingId }), listReportableShiftings(actor)]);
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold">Reports</h1>
-          <p className="text-sm text-muted-foreground">Current active shifting · derived from source records</p>
+          <p className="text-sm text-muted-foreground">
+            {data.shifting ? shiftingLabel(data.shifting) : "No active shifting"}
+            {data.isArchive ? " · archived, read-only" : " · current active shifting"} · derived from source records
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" render={<a href="/api/reports?type=attendance" />}>
-            <Download /> Attendance CSV
-          </Button>
-          <Button variant="outline" render={<a href="/api/reports?type=compliance" />}>
-            <Download /> Compliance CSV
-          </Button>
-        </div>
+        <ReportDownloads shiftingId={data.isArchive ? data.shifting?.id : undefined} />
       </div>
-      <Tabs defaultValue="attendance">
-        <TabsList className="grid w-full grid-cols-3 sm:w-fit">
-          <TabsTrigger value="attendance">
-            <CalendarCheck /> Attendance
-          </TabsTrigger>
-          <TabsTrigger value="compliance">
-            <ClipboardList /> Session & Documents
-          </TabsTrigger>
-          <TabsTrigger value="resolved">
-            <ShieldCheck /> Resolved Alerts
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="attendance">
-          <ReportTable
-            headers={["School", "Interns", "Present", "Absences", "Excused", "Late", "Rate"]}
-            rows={data.attendance.map((r) => [
-              r.school,
-              r.interns,
-              r.present,
-              r.absences,
-              r.excused,
-              r.late,
-              `${r.attendanceRate}%`,
-            ])}
-          />
-        </TabsContent>
-        <TabsContent value="compliance">
-          <ReportTable
-            headers={["School", "On Track", "Behind", "Sessions", "Missing LP", "Missing PR"]}
-            rows={data.compliance.map((r) => [
-              r.school,
-              r.onTrack,
-              r.behind,
-              r.sessionsLogged,
-              r.missingLessonPlans,
-              r.missingProgressReports,
-            ])}
-          />
-        </TabsContent>
-        <TabsContent value="resolved">
-          <ReportTable
-            headers={["Date", "School", "Intern", "Flag", "Resolved By", "Note"]}
-            rows={data.resolvedAlerts.map((r) => [
-              r.resolvedAt ? formatManila(r.resolvedAt, "MMM d, yyyy") : "—",
-              r.intern.assignedSchool.name,
-              r.intern.user.name,
-              r.type,
-              r.resolvedByUser?.name ?? "—",
-              r.resolutionNote ?? "—",
-            ])}
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
 
-function ReportTable({ headers, rows }: { headers: string[]; rows: (string | number)[][] }) {
-  return (
-    <div className="mt-4 overflow-x-auto rounded-xl border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted">
-          <tr>
-            {headers.map((h) => (
-              <th key={h} className="p-3 text-left">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-t">
-              {row.map((cell, j) => (
-                <td key={j} className="p-3">
-                  {cell}
-                </td>
+      {shiftings.length > 1 && (
+        <form method="get" className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="report-shifting">Shifting</Label>
+            <select
+              id="report-shifting"
+              name="shiftingId"
+              defaultValue={data.shifting?.id ?? ""}
+              className="h-8 min-w-72 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+            >
+              {shiftings.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {shiftingLabel(s)}
+                  {s.status === "ACTIVE" ? " (active)" : ""}
+                </option>
               ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </select>
+          </div>
+          <Button type="submit" size="sm" variant="outline">
+            Show
+          </Button>
+        </form>
+      )}
+
+      <ShiftingReport data={data} />
     </div>
   );
 }

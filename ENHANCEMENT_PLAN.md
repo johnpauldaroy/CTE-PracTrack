@@ -4,6 +4,28 @@ Source: `Concerns-PracTrack.docx` (8 screenshots, written in Kinaray-a/Hiligayno
 Each concern below has the original text, an English translation, the **root cause found in the code**, and the planned fix.
 Every fix follows `CLAUDE.md` (role scoping, audit logging in services, Manila time, config-driven rules).
 
+## Implementation status (2026-10-04)
+
+All four phases are implemented on `claude/document-enhancement-plan-b82ma2` and were verified against a local PostgreSQL database seeded with `npm run db:seed`, using a production build driven by Playwright.
+
+| Phase | Commit | Covers |
+|---|---|---|
+| 1 | `feat: run at-risk alerts automatically and wire up notifications` | #1, #2, #9, bugs B, F |
+| 2 | `feat: password visibility toggle and school overview fixes` | #8, bugs A, C, D |
+| 3 | `feat: map picker, editable school location, and safe school delete` | #5, #6, #7, bug E |
+| 4 | `feat: readable audit log and shifting archive` | #3, #4, bug G |
+
+**Deployment steps for the live Supabase/Vercel setup:**
+1. Run `prisma/sql/2026-10-04_tester-concerns.sql` once in the Supabase SQL Editor. It's safe to re-run. It adds the new notification type and column and the `SystemState` table, and it replaces the alert unique index.
+2. Set `CRON_SECRET` in the Vercel project's environment variables. `vercel.json` schedules `/api/cron/evaluate-alerts` daily at 10:30 UTC (6:30 PM Manila).
+3. Optional: set `GEOCODER_USER_AGENT` to an identifying string with contact details, per the Nominatim usage policy.
+
+**Decisions taken on the open questions (defaults from §6, change if CTE disagrees):** alerts are never auto-resolved; admins get CT-registration and HIGH-severity alert notifications; schools are soft-deleted with restore; the daily run is at 6:30 PM Manila.
+
+**Behavior change worth knowing:** *today* no longer counts as an absence until the day is over or a record exists. Before, an intern who hadn't timed in yet at 7 AM already showed an absence. The DTR, dashboard tiles, reports, and alert rules all share this rule. As a result, a supervisor can excuse today's absence only from the next day onward.
+
+**Not verifiable in the build sandbox:** the network policy blocks `tile.openstreetmap.org` and `nominatim.openstreetmap.org`. The map rendered with a blank background there, and place search showed its fallback message. Click, drag, GPS, and manual entry were all verified. Check tiles and search once on the deployed site.
+
 ---
 
 ## 1. Summary
