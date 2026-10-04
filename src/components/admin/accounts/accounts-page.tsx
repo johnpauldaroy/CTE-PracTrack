@@ -6,7 +6,10 @@ import { SupervisorsAccountsTab } from "@/components/admin/accounts/supervisors-
 import { CtsAccountsTab } from "@/components/admin/accounts/cts-accounts-tab";
 import { GraduationCap, School, UsersRound } from "lucide-react";
 
-export function AccountsPage() {
+const TABS = ["interns", "supervisors", "cts"] as const;
+
+export function AccountsPage({ initialTab }: { initialTab?: string }) {
+  const defaultTab = TABS.find((tab) => tab === initialTab) ?? "interns";
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -14,7 +17,7 @@ export function AccountsPage() {
         <p className="mt-1 text-sm text-muted-foreground">Manage access and assignments across every PracTrack role.</p>
       </div>
 
-      <Tabs defaultValue="interns">
+      <Tabs defaultValue={defaultTab}>
         <TabsList className="grid w-full grid-cols-3 sm:w-fit">
           <TabsTrigger value="interns"><GraduationCap /> Interns</TabsTrigger>
           <TabsTrigger value="supervisors"><UsersRound /> Supervisors</TabsTrigger>

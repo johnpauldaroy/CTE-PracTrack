@@ -4,7 +4,7 @@ import { authConfig } from "@/lib/auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const ADMIN_ROUTES = ["/dashboard", "/schools", "/accounts", "/semesters", "/reports", "/audit-log", "/settings"];
+const ADMIN_ROUTES = ["/dashboard", "/schools", "/accounts", "/semesters", "/reports", "/audit-log", "/settings", "/notifications"];
 const MOBILE_ROLE_PREFIX: Record<string, string> = {
   STUDENT_INTERN: "/m/intern",
   SUPERVISOR: "/m/supervisor",
@@ -44,5 +44,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/schools/:path*", "/accounts/:path*", "/semesters/:path*", "/reports/:path*", "/audit-log/:path*", "/settings/:path*", "/m/:path*"],
+  matcher: ["/dashboard/:path*", "/schools/:path*", "/accounts/:path*", "/semesters/:path*", "/reports/:path*", "/audit-log/:path*", "/settings/:path*", "/notifications/:path*", "/m/:path*"],
 };

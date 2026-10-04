@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { ForbiddenError } from "@/lib/session";
 import { scopeToRole, assertSchoolInScope } from "@/lib/scope";
+import { refreshAlertsForIntern } from "@/lib/services/alert-service";
 import type { SessionUser } from "@/lib/auth";
 import type { MarkExcusedInput } from "@/lib/validation/attendance";
 import type { Prisma } from "@/generated/prisma/client";
@@ -28,7 +29,7 @@ export async function markExcused(actor: SessionUser, input: MarkExcusedInput) {
   });
   assertSchoolInScope(actor, intern.assignedSchoolId);
 
-  return prisma.$transaction(async (tx) => {
+  const record = await prisma.$transaction(async (tx) => {
     const before = await tx.attendanceRecord.findUnique({
       where: { internId_date: { internId: params.internId, date: params.date } },
     });
@@ -68,4 +69,8 @@ export async function markExcused(actor: SessionUser, input: MarkExcusedInput) {
 
     return updated;
   });
+
+  // An excused day no longer counts toward thresholds — refresh the alert details.
+  await refreshAlertsForIntern(intern.id);
+  return record;
 }

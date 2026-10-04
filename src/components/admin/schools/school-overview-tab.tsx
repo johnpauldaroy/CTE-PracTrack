@@ -30,14 +30,15 @@ export function SchoolOverviewTab({
     "/api/supervisors",
     fetcher,
   );
-  const { data: internsData } = useSWR<{ interns: { absences: number }[] }>(
+  const { data: internsData } = useSWR<{ interns: { absences: number; isFlagged: boolean }[] }>(
     `/api/schools/${school.id}/interns`,
     fetcher,
   );
   const [isAssigning, setIsAssigning] = useState(false);
 
   const internCount = internsData?.interns.length ?? 0;
-  const flaggedCount = internsData?.interns.filter((i) => i.absences > 0).length ?? 0;
+  // "Flagged" = interns with at least one ACTIVE alert, so it agrees with the dashboards.
+  const flaggedCount = internsData?.interns.filter((i) => i.isFlagged).length ?? 0;
 
   async function handleAssign(supervisorUserId: string) {
     setIsAssigning(true);

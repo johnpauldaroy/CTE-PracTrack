@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ForbiddenError } from "@/lib/session";
 import { materializeAttendanceRecords } from "@/lib/services/dtr-service";
+import { ensureAlertsFresh } from "@/lib/services/alert-service";
 import type { SessionUser } from "@/lib/auth";
 
 export async function getReports(actor: SessionUser) {
@@ -13,4 +14,4 @@ export async function getReports(actor: SessionUser) {
   return { shifting, attendance, compliance, resolvedAlerts };
 }
 
-export async function getDashboard(actor: SessionUser) { const reports = await getReports(actor); const activeAlerts = await prisma.alert.findMany({ where: { status: "ACTIVE" }, include: { intern: { include: { user: true, assignedSchool: true } } }, orderBy: { severity: "desc" }, take: 10 }); return { ...reports, activeAlerts, totals: { schools: reports.attendance.length, interns: reports.attendance.reduce((n, row) => n + row.interns, 0), absences: reports.attendance.reduce((n, row) => n + row.absences, 0), activeAlerts: await prisma.alert.count({ where: { status: "ACTIVE" } }) } }; }
+export async function getDashboard(actor: SessionUser) { if (actor.role !== "ADMIN") throw new ForbiddenError(); await ensureAlertsFresh(); const reports = await getReports(actor); const activeAlerts = await prisma.alert.findMany({ where: { status: "ACTIVE" }, include: { intern: { include: { user: true, assignedSchool: true } } }, orderBy: { severity: "desc" }, take: 10 }); return { ...reports, activeAlerts, totals: { schools: reports.attendance.length, interns: reports.attendance.reduce((n, row) => n + row.interns, 0), absences: reports.attendance.reduce((n, row) => n + row.absences, 0), activeAlerts: await prisma.alert.count({ where: { status: "ACTIVE" } }) } }; }

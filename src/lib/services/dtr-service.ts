@@ -103,8 +103,10 @@ type MaterializedRecord = Pick<
  * A day within the shifting's date range with no AttendanceRecord row is
  * ABSENT (PRD §6.5: "a day within the shifting with neither is ABSENT") —
  * there is no row to represent it, so one is synthesized for display/count
- * purposes only (never persisted). Only days up to and including today are
- * materialized; future shifting days aren't "absences" yet.
+ * purposes only (never persisted). Only days that are over are materialized:
+ * today is shown only once it has a real row (a punch or an excuse) — an
+ * intern who hasn't timed in yet this morning is not absent yet — and future
+ * shifting days aren't "absences" either.
  *
  * OPEN QUESTION not resolved here: the PRD never defines a school calendar
  * or excludes weekends/holidays from this rule, so every day in range
@@ -130,7 +132,7 @@ export function materializeAttendanceRecords(
     const existing = byDate.get(cursor.getTime());
     if (existing) {
       result.push(existing);
-    } else {
+    } else if (cursor.getTime() < today.getTime()) {
       result.push({
         id: `absent-${shifting.id}-${cursor.toISOString().slice(0, 10)}`,
         date: new Date(cursor),
