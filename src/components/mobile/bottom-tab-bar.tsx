@@ -14,13 +14,24 @@ export interface TabItem {
   icon: TabIconName;
 }
 
+const matches = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");
+
+/** The tab whose href is the longest match for the path, so "Home" (the portal root) doesn't light up on every page. */
+export function activeTabHref(pathname: string, items: TabItem[]) {
+  return items
+    .filter((item) => matches(pathname, item.href))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+}
+
+/** Phone navigation. On md+ screens the tabs move into MobileHeader. */
 export function BottomTabBar({ items }: { items: TabItem[] }) {
   const pathname = usePathname();
+  const activeHref = activeTabHref(pathname, items);
 
   return (
-    <nav className="sticky bottom-0 z-10 flex border-t bg-card">
+    <nav className="sticky bottom-0 z-10 flex border-t bg-card md:hidden">
       {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(item.href + "/");
+        const active = item.href === activeHref;
         const Icon = TAB_ICONS[item.icon];
         return (
           <Link

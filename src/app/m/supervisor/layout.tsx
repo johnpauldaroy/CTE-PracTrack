@@ -17,9 +17,9 @@ export default async function SupervisorLayout({ children }: { children: React.R
   }
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col bg-background">
-      <MobileHeader notificationHref="/m/supervisor/notifications" />
-      <main className="flex-1 overflow-y-auto pb-4">{children}</main>
+    <div className="flex min-h-svh w-full flex-col bg-background">
+      <MobileHeader notificationHref="/m/supervisor/notifications" items={TABS} />
+      <main className="mx-auto w-full max-w-5xl flex-1 pb-4 md:px-2 md:py-4">{children}</main>
       <BottomTabBar items={TABS} />
     </div>
   );
