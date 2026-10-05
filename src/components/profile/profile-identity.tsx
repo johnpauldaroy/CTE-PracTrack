@@ -1,14 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import useSWR from "swr";
 import { toast } from "sonner";
 import { Camera } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useProfilePhoto } from "@/components/profile/use-profile-photo";
 import type { SessionUser } from "@/lib/auth";
 
 const PHOTO_SIZE = 512;
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter((p) => !/^(mr|ms|mrs|dr|prof)\.?$/i.test(p));
@@ -36,10 +35,9 @@ async function toSquareJpeg(file: File) {
 
 /** Name, email, and the account's own profile photo with upload / remove controls. */
 export function ProfileIdentity({ user }: { user: SessionUser }) {
-  const { data, mutate } = useSWR<{ url: string | null }>("/api/me/avatar", fetcher, { revalidateOnFocus: false });
+  const { url, mutate } = useProfilePhoto();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const url = data?.url ?? null;
 
   async function send(method: "POST" | "DELETE", body?: FormData) {
     setBusy(true);

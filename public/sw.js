@@ -29,6 +29,9 @@ self.addEventListener("activate", (event) => {
 // loudly if it's unavailable.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  // Leave other origins (storage images, map tiles) to the browser — a failed
+  // cross-origin image must not be answered with the cached app shell.
+  if (new URL(event.request.url).origin !== self.location.origin) return;
 
   event.respondWith(
     fetch(event.request).catch(() =>

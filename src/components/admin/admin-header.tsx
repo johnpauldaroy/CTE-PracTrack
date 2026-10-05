@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useProfilePhoto } from "@/components/profile/use-profile-photo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,7 @@ function initials(name: string) {
 export function AdminHeader({ user }: { user: SessionUser }) {
   const pathname = usePathname();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const { url: photoUrl } = useProfilePhoto();
 
   return (
     <header className="border-b-2 border-primary bg-card">
@@ -95,6 +97,7 @@ export function AdminHeader({ user }: { user: SessionUser }) {
           <DropdownMenu>
             <DropdownMenuTrigger render={<button type="button" className="rounded-full" />}>
               <Avatar className="size-9">
+                {photoUrl && <AvatarImage src={photoUrl} alt="" />}
                 <AvatarFallback className="bg-secondary text-secondary-foreground font-semibold">
                   {initials(user.name)}
                 </AvatarFallback>
