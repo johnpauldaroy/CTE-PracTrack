@@ -127,7 +127,11 @@ export function EditInternSheet({
 
           <div className="flex flex-col gap-2">
             <Label>School</Label>
-            <Select value={assignedSchoolId} onValueChange={(v) => setAssignedSchoolId(v ?? "")}>
+            <Select
+              value={assignedSchoolId}
+              onValueChange={(v) => setAssignedSchoolId(v ?? "")}
+              items={Object.fromEntries((schoolsData?.schools ?? []).map((s) => [s.id, s.name]))}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select school" />
               </SelectTrigger>

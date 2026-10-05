@@ -136,7 +136,11 @@ export function SupervisorFormSheet({
 
           <div className="flex flex-col gap-2">
             <Label>School Assigned</Label>
-            <Select value={schoolId} onValueChange={(v) => setSchoolId(v ?? "")}>
+            <Select
+              value={schoolId}
+              onValueChange={(v) => setSchoolId(v ?? "")}
+              items={Object.fromEntries((schoolsData?.schools ?? []).map((s) => [s.id, s.name]))}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Not yet assigned" />
               </SelectTrigger>

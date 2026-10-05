@@ -1,5 +1,6 @@
 "use client";
 
+import { formatManila } from "@/lib/timezone";
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -88,7 +89,7 @@ export function CtsAccountsTab() {
                   <TableCell>{ct.user.email}</TableCell>
                   <TableCell>{ct.user.phone}</TableCell>
                   <TableCell>{ct.school.name}</TableCell>
-                  <TableCell>{new Date(ct.user.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatManila(new Date(ct.user.createdAt), "MMM d, yyyy")}</TableCell>
                   <TableCell className="flex justify-end gap-2 text-right">
                     <Button size="sm" className="bg-success text-success-foreground hover:bg-success/90" onClick={() => handleApprove(ct)}>
                       <Check /> Approve

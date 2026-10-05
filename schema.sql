@@ -50,7 +50,7 @@ CREATE TYPE "AlertSeverity" AS ENUM ('LOW', 'MEDIUM', 'HIGH');
 CREATE TYPE "AlertStatus" AS ENUM ('ACTIVE', 'RESOLVED');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('SESSION_ASSIGNED', 'SESSION_EVALUATED', 'ATTENDANCE_THRESHOLD_WARNING', 'ALERT_RAISED', 'EVALUATION_AWAITING', 'CT_REGISTRATION_APPROVED', 'DOCUMENT_REMINDER');
+CREATE TYPE "NotificationType" AS ENUM ('SESSION_ASSIGNED', 'SESSION_EVALUATED', 'ATTENDANCE_THRESHOLD_WARNING', 'ALERT_RAISED', 'EVALUATION_AWAITING', 'CT_REGISTRATION_APPROVED', 'CT_REGISTRATION_PENDING', 'DOCUMENT_REMINDER');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -328,12 +328,21 @@ CREATE TABLE "CheckInConfig" (
 );
 
 -- CreateTable
+CREATE TABLE "SystemState" (
+    "id" TEXT NOT NULL DEFAULT 'singleton',
+    "alertsEvaluatedAt" TIMESTAMP(3),
+
+    CONSTRAINT "SystemState_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Notification" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "type" "NotificationType" NOT NULL,
     "title" TEXT NOT NULL,
     "body" TEXT NOT NULL,
+    "href" TEXT,
     "readAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -470,7 +479,10 @@ CREATE INDEX "Alert_shiftingId_status_idx" ON "Alert"("shiftingId", "status");
 CREATE INDEX "Alert_internId_shiftingId_idx" ON "Alert"("internId", "shiftingId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Alert_internId_shiftingId_type_status_key" ON "Alert"("internId", "shiftingId", "type", "status");
+CREATE INDEX "Alert_internId_shiftingId_type_status_idx" ON "Alert"("internId", "shiftingId", "type", "status");
+
+-- At most one ACTIVE alert per intern/shifting/type (resolved history is unlimited).
+CREATE UNIQUE INDEX "Alert_one_active_per_type" ON "Alert"("internId", "shiftingId", "type") WHERE "status" = 'ACTIVE';
 
 -- CreateIndex
 CREATE INDEX "Notification_userId_readAt_idx" ON "Notification"("userId", "readAt");
@@ -755,6 +767,7 @@ ALTER TABLE "EndOfTermSubmission" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Alert" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "FlaggingRuleConfig" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "CheckInConfig" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SystemState" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Notification" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "PushSubscription" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AuditLog" ENABLE ROW LEVEL SECURITY;

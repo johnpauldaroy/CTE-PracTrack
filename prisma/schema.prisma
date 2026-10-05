@@ -109,6 +109,7 @@ enum NotificationType {
   ALERT_RAISED
   EVALUATION_AWAITING
   CT_REGISTRATION_APPROVED
+  CT_REGISTRATION_PENDING
   DOCUMENT_REMINDER
 }
 
@@ -455,9 +456,9 @@ model Alert {
   resolutionNote   String?
 
   // One active alert of a given type per intern per shifting — re-evaluation updates
-  // detail/severity on the existing row instead of duplicating it.
-  // Active-alert deduplication is enforced transactionally in alert-service.
-  // A SQL partial unique index is recommended in production; a Prisma @@unique
+  // detail/severity on the existing row instead of duplicating it. Enforced by the
+  // partial unique index "Alert_one_active_per_type" (raw SQL in schema.sql /
+  // prisma/sql/, since Prisma can't express a WHERE clause); a Prisma @@unique
   // including status would incorrectly allow only one RESOLVED alert forever.
   @@index([internId, shiftingId, type, status])
   @@index([shiftingId, status])
@@ -485,6 +486,12 @@ model CheckInConfig {
   updatedAt    DateTime @updatedAt
 }
 
+// Singleton for system bookkeeping that isn't user-facing config.
+model SystemState {
+  id                String    @id @default("singleton")
+  alertsEvaluatedAt DateTime? // last full run of the at-risk rule engine (cron, dashboard freshness check, or manual)
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────────────────────────────────────────
@@ -496,6 +503,7 @@ model Notification {
   type      NotificationType
   title     String
   body      String
+  href      String? // in-app route the notification opens, e.g. "/accounts?tab=cts"
   readAt    DateTime?
   createdAt DateTime         @default(now())
 

@@ -58,7 +58,7 @@ export async function getFlaggingRuleConfig() {
 export async function updateFlaggingRuleConfig(actor: SessionUser, input: FlaggingRuleConfigInput) {
   if (actor.role !== "ADMIN") throw new ForbiddenError("Only the CTE office can change flagging rules.");
 
-  return prisma.$transaction(async (tx) => {
+  const config = await prisma.$transaction(async (tx) => {
     const before = await getFlaggingRuleConfig();
     const updated = await tx.flaggingRuleConfig.update({ where: { id: before.id }, data: input });
 
@@ -76,7 +76,13 @@ export async function updateFlaggingRuleConfig(actor: SessionUser, input: Flaggi
             evaluationPendingDays: before.evaluationPendingDays,
             behindPaceTolerance: before.behindPaceTolerance.toString(),
           },
-          after: input,
+          after: {
+            absenceEarlyWarning: updated.absenceEarlyWarning,
+            consecutiveAbsences: updated.consecutiveAbsences,
+            dropEligibleAbove: updated.dropEligibleAbove,
+            evaluationPendingDays: updated.evaluationPendingDays,
+            behindPaceTolerance: updated.behindPaceTolerance.toString(),
+          },
         } as unknown as Prisma.InputJsonValue,
       },
       tx,
@@ -84,6 +90,16 @@ export async function updateFlaggingRuleConfig(actor: SessionUser, input: Flaggi
 
     return updated;
   });
+
+  // New thresholds apply from now on: re-run the rules so dashboards reflect them immediately.
+  // Imported lazily to avoid a module cycle (alert-service reads this module's config getter).
+  const { evaluateAllAlerts } = await import("@/lib/services/alert-service");
+  try {
+    await evaluateAllAlerts();
+  } catch (error) {
+    console.error("[alerts] evaluation after flagging-rule change failed", error);
+  }
+  return config;
 }
 
 export async function updateGlobalCheckInConfig(actor: SessionUser, input: CheckInConfigInput) {

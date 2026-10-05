@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/session";
 import { toApiErrorResponse } from "@/lib/api-error";
 import { createSchoolSchema } from "@/lib/validation/school";
-import { listSchools, createSchool } from "@/lib/services/school-service";
+import { listSchools, createSchool, listDeletedSchools } from "@/lib/services/school-service";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await requireSession();
-    const schools = await listSchools(user);
+    const schools =
+      request.nextUrl.searchParams.get("deleted") === "1" ? await listDeletedSchools(user) : await listSchools(user);
     return NextResponse.json({ schools });
   } catch (error) {
     return toApiErrorResponse(error);

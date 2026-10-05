@@ -3,6 +3,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { scopeToRole } from "@/lib/scope";
 import { ForbiddenError } from "@/lib/session";
 import { computeOverallScore } from "@/lib/evaluation-score";
+import { refreshAlertsForIntern } from "@/lib/services/alert-service";
 import type { SessionUser } from "@/lib/auth";
 import type { AssignSessionInput, SubmitEvaluationInput } from "@/lib/validation/session";
 import type { Prisma } from "@/generated/prisma/client";
@@ -73,6 +74,7 @@ export async function assignSession(actor: SessionUser, input: AssignSessionInpu
         type: "SESSION_ASSIGNED",
         title: "New teaching session",
         body: `${input.subject} — ${input.topic} has been assigned.`,
+        href: "/m/intern/sessions",
       },
     });
     await writeAuditLog({
@@ -122,7 +124,7 @@ export async function submitEvaluation(actor: SessionUser, sessionId: string, in
   }
   const overallScore = Math.round(computeOverallScore(criteria, ratings) * 100) / 100;
 
-  return prisma.$transaction(async (tx) => {
+  const evaluation = await prisma.$transaction(async (tx) => {
     const evaluation = await tx.evaluation.create({
       data: {
         sessionId,
@@ -140,6 +142,7 @@ export async function submitEvaluation(actor: SessionUser, sessionId: string, in
         type: "SESSION_EVALUATED",
         title: "Session evaluated",
         body: `Session ${session.sessionNumber} was evaluated (${overallScore.toFixed(2)}%).`,
+        href: "/m/intern/sessions",
       },
     });
     await writeAuditLog({
@@ -151,4 +154,8 @@ export async function submitEvaluation(actor: SessionUser, sessionId: string, in
     }, tx);
     return evaluation;
   });
+
+  // Pace and pending-evaluation rules depend on evaluated sessions.
+  await refreshAlertsForIntern(session.internId);
+  return evaluation;
 }
