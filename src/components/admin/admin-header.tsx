@@ -11,6 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
@@ -99,11 +100,12 @@ export function AdminHeader({ user }: { user: SessionUser }) {
                 </AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-auto min-w-48 max-w-72">
               <div className="px-2 py-1.5 text-sm">
-                <p className="font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
+                <p className="truncate font-medium">{user.name}</p>
+                <p className="truncate text-xs text-muted-foreground" title={user.email}>{user.email}</p>
               </div>
+              <DropdownMenuSeparator />
               <DropdownMenuItem render={<Link href="/settings" />}>My Account</DropdownMenuItem>
               <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })} className="text-destructive">
                 Sign Out

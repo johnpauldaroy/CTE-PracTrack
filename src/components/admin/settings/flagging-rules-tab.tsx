@@ -138,10 +138,6 @@ function FlaggingRulesForm({ config, onSaved }: { config: FlaggingRuleConfig; on
               value={behindPaceTolerance}
               onChange={(e) => setBehindPaceTolerance(Number(e.target.value))}
             />
-            <p className="text-xs text-muted-foreground">
-              Not shown as a configurable field in the original mockup, but CLAUDE.md requires every
-              flagging rule to be config-driven, not hardcoded — added here for completeness.
-            </p>
           </div>
 
           <Button type="submit" disabled={isSubmitting}>
