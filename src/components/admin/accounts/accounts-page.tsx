@@ -18,7 +18,7 @@ export function AccountsPage({ initialTab }: { initialTab?: string }) {
       </div>
 
       <Tabs defaultValue={defaultTab}>
-        <TabsList className="grid w-full grid-cols-3 sm:w-fit">
+        <TabsList>
           <TabsTrigger value="interns"><GraduationCap /> Interns</TabsTrigger>
           <TabsTrigger value="supervisors"><UsersRound /> Supervisors</TabsTrigger>
           <TabsTrigger value="cts"><School /> Cooperating Teachers</TabsTrigger>

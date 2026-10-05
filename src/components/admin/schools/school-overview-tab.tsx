@@ -107,7 +107,7 @@ export function SchoolOverviewTab({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <StatCard label="Interns" value={internCount} />
         <StatCard label="Present Today" value={internsData ? `${presentTodayCount} / ${internCount}` : "—"} tone="success" />
         <StatCard label="Flagged" value={flaggedCount} tone="warning" />
@@ -270,19 +270,19 @@ function StatCard({
 }) {
   return (
     <Card>
-      <CardContent className="p-5">
+      <CardContent className="p-3 sm:p-5">
         <p
           className={
             tone === "success"
-              ? "text-3xl font-bold text-success"
+              ? "text-xl font-bold sm:text-3xl text-success"
               : tone === "warning"
-                ? "text-3xl font-bold text-warning"
-                : "text-3xl font-bold"
+                ? "text-xl font-bold sm:text-3xl text-warning"
+                : "text-xl font-bold sm:text-3xl"
           }
         >
           {value}
         </p>
-        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground sm:text-sm">{label}</p>
       </CardContent>
     </Card>
   );

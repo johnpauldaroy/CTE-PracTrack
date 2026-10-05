@@ -48,7 +48,7 @@ export default async function ShiftingArchivePage({ params }: { params: Promise<
         requirements; nothing here can be edited.
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Tile label="Interns with activity" value={totals.interns} />
         <Tile label="Absences" value={totals.absences} />
         <Tile label="Teaching sessions logged" value={totals.sessions} />
@@ -62,8 +62,8 @@ export default async function ShiftingArchivePage({ params }: { params: Promise<
 
 function Tile({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
-    <div className="rounded-xl border bg-card p-5">
-      <p className="text-3xl font-bold">{value}</p>
+    <div className="rounded-xl border bg-card p-4 sm:p-5">
+      <p className="text-2xl font-bold sm:text-3xl">{value}</p>
       <p className="text-sm text-muted-foreground">{label}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>

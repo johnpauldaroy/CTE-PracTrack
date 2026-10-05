@@ -58,7 +58,7 @@ export function InternDetailSheet({
 
             <div className="px-4 pb-4">
               <Tabs defaultValue="dtr">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList>
                   <TabsTrigger value="dtr">DTR</TabsTrigger>
                   <TabsTrigger value="sessions">Sessions</TabsTrigger>
                   <TabsTrigger value="evaluations">Evaluations</TabsTrigger>

@@ -24,13 +24,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
       {shiftings.length > 1 && (
         <form method="get" className="flex flex-wrap items-end gap-2">
-          <div className="flex flex-col gap-1.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-none">
             <Label htmlFor="report-shifting">Shifting</Label>
             <select
               id="report-shifting"
               name="shiftingId"
               defaultValue={data.shifting?.id ?? ""}
-              className="h-8 min-w-72 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+              className="h-8 w-full rounded-lg sm:min-w-72 border border-input bg-transparent px-2.5 text-sm"
             >
               {shiftings.map((s) => (
                 <option key={s.id} value={s.id}>

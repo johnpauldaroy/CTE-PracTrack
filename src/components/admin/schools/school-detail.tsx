@@ -41,7 +41,7 @@ export function SchoolDetail({ schoolId }: { schoolId: string }) {
       </div>
 
       <Tabs defaultValue="overview">
-        <TabsList className="grid w-full grid-cols-3 sm:w-fit">
+        <TabsList>
           <TabsTrigger value="overview"><LayoutDashboard /> Overview</TabsTrigger>
           <TabsTrigger value="interns"><GraduationCap /> Interns</TabsTrigger>
           <TabsTrigger value="resolved-alerts"><CheckCircle2 /> Resolved Alerts</TabsTrigger>

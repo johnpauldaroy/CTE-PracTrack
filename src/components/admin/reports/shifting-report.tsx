@@ -40,7 +40,7 @@ export function ReportDownloads({ shiftingId }: { shiftingId?: string }) {
 export function ShiftingReport({ data }: { data: Reports }) {
   return (
     <Tabs defaultValue="attendance">
-      <TabsList className="grid w-full grid-cols-3 sm:w-fit">
+      <TabsList>
         <TabsTrigger value="attendance">
           <CalendarCheck /> Attendance
         </TabsTrigger>

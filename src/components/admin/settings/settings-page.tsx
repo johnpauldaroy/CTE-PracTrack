@@ -13,7 +13,7 @@ export function SettingsPage({ user }: { user: SessionUser }) {
       <h1 className="font-heading text-3xl font-bold">Settings</h1>
 
       <Tabs defaultValue="account">
-        <TabsList className="grid w-full grid-cols-3 sm:w-fit">
+        <TabsList>
           <TabsTrigger value="account"><User /> My Account</TabsTrigger>
           <TabsTrigger value="flagging"><Flag /> Flagging Rules</TabsTrigger>
           <TabsTrigger value="checkin"><Clock /> Check-in</TabsTrigger>
