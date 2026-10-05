@@ -43,6 +43,9 @@ export const ACTION_LABELS: Record<string, string> = {
   INTERN_ACCOUNT_UPDATE: "Edited intern account",
   INTERN_CT_ASSIGN: "Assigned cooperating teacher",
   PASSWORD_CHANGE: "Changed password",
+  PROFILE_PHOTO_REMOVE: "Removed profile photo",
+  PROFILE_PHOTO_REPLACE: "Replaced profile photo",
+  PROFILE_PHOTO_UPLOAD: "Uploaded profile photo",
   SCHOOL_CHECKIN_OVERRIDE_UPDATE: "Changed school check-in times",
   SCHOOL_CREATE: "Added school",
   SCHOOL_DELETE: "Deleted school",
@@ -288,6 +291,12 @@ export function summarizeAudit(log: AuditLogLike, names: NameLookup = {}): strin
         : `${actor} removed the cooperating teacher of ${entity}.`;
     case "PASSWORD_CHANGE":
       return `${actor} changed their password.`;
+    case "PROFILE_PHOTO_UPLOAD":
+      return `${actor} uploaded a profile photo.`;
+    case "PROFILE_PHOTO_REPLACE":
+      return `${actor} replaced their profile photo.`;
+    case "PROFILE_PHOTO_REMOVE":
+      return `${actor} removed their profile photo.`;
     case "ACADEMIC_YEAR_ARCHIVE":
       return `${actor} archived ${entity}.`;
     case "SEMESTER_CREATE":

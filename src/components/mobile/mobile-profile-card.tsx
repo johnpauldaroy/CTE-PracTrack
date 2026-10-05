@@ -3,22 +3,12 @@
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { ProfileIdentity } from "@/components/profile/profile-identity";
 import type { SessionUser } from "@/lib/auth";
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter((p) => !/^(mr|ms|mrs|dr|prof)\.?$/i.test(p));
-  return (
-    parts
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase())
-      .join("") || name.slice(0, 2).toUpperCase()
-  );
-}
 
 export function MobileProfileCard({ user }: { user: SessionUser }) {
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -57,16 +47,8 @@ export function MobileProfileCard({ user }: { user: SessionUser }) {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardContent className="flex items-center gap-4 p-4">
-          <Avatar className="size-12">
-            <AvatarFallback className="bg-secondary text-secondary-foreground font-semibold">
-              {initials(user.name)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-semibold">{user.name}</p>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
-          </div>
+        <CardContent className="p-4">
+          <ProfileIdentity user={user} />
         </CardContent>
       </Card>
 

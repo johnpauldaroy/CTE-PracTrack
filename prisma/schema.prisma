@@ -132,6 +132,7 @@ model User {
   supervisorProfile SupervisorProfile?
   ctProfile         CooperatingTeacherProfile?
   internProfile     InternProfile?
+  profilePhoto      ProfilePhoto?
 
   // Reverse relations for actions this user performed as staff.
   createdInterns           InternProfile[]             @relation("InternCreatedBy")
@@ -508,6 +509,18 @@ model Notification {
   createdAt DateTime         @default(now())
 
   @@index([userId, readAt])
+}
+
+// The account's own profile picture. The bytes live in Supabase Storage; this row
+// holds the object key plus metadata (CLAUDE.md). One per user, replaced in place.
+model ProfilePhoto {
+  userId           String   @id
+  user             User     @relation(fields: [userId], references: [id])
+  storageKey       String
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  uploadedAt       DateTime @default(now())
 }
 
 model PushSubscription {

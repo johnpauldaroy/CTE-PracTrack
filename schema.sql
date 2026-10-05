@@ -350,6 +350,18 @@ CREATE TABLE "Notification" (
 );
 
 -- CreateTable
+CREATE TABLE "ProfilePhoto" (
+    "userId" TEXT NOT NULL,
+    "storageKey" TEXT NOT NULL,
+    "originalFilename" TEXT NOT NULL,
+    "mimeType" TEXT NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ProfilePhoto_pkey" PRIMARY KEY ("userId")
+);
+
+-- CreateTable
 CREATE TABLE "PushSubscription" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -599,6 +611,9 @@ ALTER TABLE "Alert" ADD CONSTRAINT "Alert_resolvedByUserId_fkey" FOREIGN KEY ("r
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ProfilePhoto" ADD CONSTRAINT "ProfilePhoto_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "PushSubscription" ADD CONSTRAINT "PushSubscription_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -769,6 +784,7 @@ ALTER TABLE "FlaggingRuleConfig" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "CheckInConfig" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "SystemState" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Notification" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ProfilePhoto" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "PushSubscription" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AuditLog" ENABLE ROW LEVEL SECURITY;
 
