@@ -18,17 +18,23 @@ import {
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { NotificationList } from "@/components/notifications/notification-list";
 import { NotificationBellBadge } from "@/components/notifications/notification-bell-badge";
+import { BottomTabBar, type TabItem } from "@/components/mobile/bottom-tab-bar";
 import type { SessionUser } from "@/lib/auth";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Schools", href: "/schools" },
-  { label: "Accounts", href: "/accounts" },
-  { label: "Semesters", href: "/semesters" },
-  { label: "Reports", href: "/reports" },
-  { label: "Audit Log", href: "/audit-log" },
-  { label: "Settings", href: "/settings" },
-];
+  { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
+  { label: "Schools", href: "/schools", icon: "School" },
+  { label: "Accounts", href: "/accounts", icon: "Users" },
+  { label: "Semesters", href: "/semesters", icon: "Calendar" },
+  { label: "Reports", href: "/reports", icon: "BarChart3" },
+  { label: "Audit Log", href: "/audit-log", icon: "ScrollText" },
+  { label: "Settings", href: "/settings", icon: "Settings" },
+] satisfies TabItem[];
+
+/** Phone navigation for the admin dashboard; the header shows the same items on md+ screens. */
+export function AdminBottomNav() {
+  return <BottomTabBar items={NAV_ITEMS} />;
+}
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);

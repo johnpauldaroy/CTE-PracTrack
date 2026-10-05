@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertTriangle, BookOpen, Calendar, FileText, Home, User, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, Calendar, FileText, Home, LayoutDashboard, School, ScrollText, Settings, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const TAB_ICONS = { AlertTriangle, BookOpen, Calendar, FileText, Home, User, Users };
+const TAB_ICONS = { AlertTriangle, BarChart3, BookOpen, Calendar, FileText, Home, LayoutDashboard, School, ScrollText, Settings, User, Users };
 export type TabIconName = keyof typeof TAB_ICONS;
 
 export interface TabItem {
@@ -38,12 +38,13 @@ export function BottomTabBar({ items }: { items: TabItem[] }) {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium",
+              "flex min-w-0 flex-1 flex-col items-center gap-1 py-2 font-medium",
+              items.length > 5 ? "text-[10px] tracking-tighter" : "text-xs",
               active ? "text-primary" : "text-muted-foreground",
             )}
           >
             <Icon className="size-5" />
-            {item.label}
+            <span className="max-w-full truncate">{item.label}</span>
           </Link>
         );
       })}
