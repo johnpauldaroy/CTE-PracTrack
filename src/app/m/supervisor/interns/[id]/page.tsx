@@ -7,6 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InternDtrTab } from "@/components/mobile/supervisor/intern-dtr-tab";
 import { CtAssignment } from "@/components/mobile/supervisor/ct-assignment";
+import { InternSessionsTab } from "@/components/interns/intern-sessions-tab";
+import { InternEvaluationsTab } from "@/components/interns/intern-evaluations-tab";
+import { InternDocumentsTab } from "@/components/interns/intern-documents-tab";
+import { InternAlertsTab } from "@/components/interns/intern-alerts-tab";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -16,10 +20,6 @@ interface InternDetail {
   course: string;
   user: { name: string };
   assignedSchool: { name: string };
-}
-
-function NotYetAvailable({ module }: { module: string }) {
-  return <p className="py-10 text-center text-sm text-muted-foreground">{module} isn&apos;t available yet.</p>;
 }
 
 export default function SupervisorInternDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -55,14 +55,18 @@ export default function SupervisorInternDetailPage({ params }: { params: Promise
         <TabsContent value="dtr" className="mt-4">
           <InternDtrTab internId={id} />
         </TabsContent>
-        <TabsContent value="sessions" className="mt-4">
-          <NotYetAvailable module="Teaching sessions" />
+        <TabsContent value="sessions" className="mt-4 flex flex-col gap-6">
+          <InternSessionsTab internId={id} />
+          <div className="flex flex-col gap-2">
+            <h2 className="text-sm font-semibold">Evaluations</h2>
+            <InternEvaluationsTab internId={id} />
+          </div>
         </TabsContent>
         <TabsContent value="documents" className="mt-4">
-          <NotYetAvailable module="Documents" />
+          <InternDocumentsTab internId={id} />
         </TabsContent>
         <TabsContent value="alerts" className="mt-4">
-          <NotYetAvailable module="Alerts" />
+          <InternAlertsTab internId={id} />
         </TabsContent>
       </Tabs>
     </div>

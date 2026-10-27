@@ -68,10 +68,10 @@ Everything in the system is scoped to a **shifting**, and this constrains nearly
 ### 6.1 Authentication & account provisioning
 
 - Admin signs in on the web at a dedicated admin login (institutional email + password).
-- Mobile login presents a role selector (Student Intern / Supervisor / Cooperating Teacher) and email + password.
-- CT registration form: full name, email, phone number, school (select from registered partner schools) → creates a `PENDING` CT account visible to admin under Accounts → Cooperating Teachers.
-- Admin approves or deletes a pending CT; only `ACTIVE` CTs can sign in.
-- Interns and supervisors are provisioned with an initial password by their creator (supervisor / admin respectively) and can change it from Profile → Change Password.
+- Mobile login asks for email + password only — no role selector. Emails are unique across roles, so the account's role decides the destination (intern / supervisor / CT home). Either login page accepts any role and routes it home.
+- CT registration form: full name, email, phone number, school (select from registered partner schools), password + confirm password → creates a `PENDING` CT account visible to admin under Accounts → Cooperating Teachers.
+- Admin approves or deletes a pending CT; only `ACTIVE` CTs can sign in. A pending CT who signs in with the correct password is told the account is awaiting approval. Admin can also set a CT's password (audited) for out-of-band resets.
+- Interns and supervisors are provisioned with an initial password by their creator (supervisor or admin / admin respectively) and can change it from Profile → Change Password.
 - Password reset is handled out-of-band ("Contact the CTE office" / "Contact IT support") — no self-service reset in v1 (see §10).
 - Sessions expire after inactivity; role and scope are read from the session on every request, never from the client.
 
@@ -88,7 +88,7 @@ Everything in the system is scoped to a **shifting**, and this constrains nearly
 ### 6.3 Account management (Admin)
 
 - Three tabs — Interns, Supervisors, Cooperating Teachers — with search by name/ID and filter by school.
-- **Interns**: view, edit (name, school ID, course, email, school — for corrections only), delete. Intern detail drawer with four tabs: DTR, Sessions, Evaluations (per-criterion breakdown + CT comments), Documents (per-session files with view/download).
+- **Interns**: add (full name, school ID, institutional email, course, year level, school, initial password), view, edit (name, school ID, course, email, school — for corrections only), delete. Intern detail drawer with four tabs: DTR, Sessions, Evaluations (per-criterion breakdown + CT comments), Documents (per-session files with view/download).
 - **Supervisors**: add/edit/delete with name, institutional email, department, school assigned.
 - **Cooperating Teachers**: Pending Approval table (name, email, phone, school, registered date → Approve / Delete) and Active table (name, email, school, assigned interns → View / Delete). CT detail shows each assigned intern with session progress and absence count.
 - Deleting an account with historical records soft-deletes/deactivates rather than cascading — records must survive for audit.
@@ -157,6 +157,7 @@ Everything in the system is scoped to a **shifting**, and this constrains nearly
 - Filters: school (All Schools or one) + shifting, with **Export CSV** on every tab.
 - **Attendance** — per school: interns, present today, absences this shifting, excused, late, average attendance rate, plus a system-wide total row. Selecting one school drills down to per-intern rows.
 - **Session & Document Compliance** — per school: on track, behind, sessions logged, missing lesson plans, missing progress reports. Per-intern drill-down shows status, sessions x/N, missing LP, missing PR.
+- **Per Student** — one row per intern: attendance (present, late, absent, excused, rate), sessions evaluated x/N, final demo, on track / behind, average session score (labeled a reference summary, not an official grade), missing LP / PR, narrative and portfolio submitted, active alerts. Filter by school, by student (name or school ID), or both; CSV export follows the filter; selecting a row opens the intern's full record. Also available on a completed shifting's archive.
 - **Resolved Alerts** — date, school, intern, flag, resolving supervisor, resolution note.
 - Every figure is derived at query time from source records; no denormalized report tables that can drift.
 

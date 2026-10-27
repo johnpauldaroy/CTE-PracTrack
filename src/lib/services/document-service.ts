@@ -16,6 +16,24 @@ export async function listDocuments(actor: SessionUser) {
   return { sessions, endSubmissions };
 }
 
+/** One intern's current session documents and end-of-term submissions for one shifting. */
+export async function listInternDocuments(actor: SessionUser, internId: string, shiftingId: string) {
+  const intern = await prisma.internProfile.findFirst({ where: { id: internId, ...scopeToRole.intern(actor) } });
+  if (!intern) throw new ForbiddenError("Intern is outside your scope.");
+  const [sessions, endSubmissions] = await Promise.all([
+    prisma.teachingSession.findMany({
+      where: { ...scopeToRole.session(actor), internId, shiftingId },
+      select: { id: true, sessionNumber: true, subject: true, date: true, documents: { where: { supersededByDocumentId: null }, select: { id: true, type: true, originalFilename: true, uploadedAt: true }, orderBy: { uploadedAt: "desc" } } },
+      orderBy: { sessionNumber: "asc" },
+    }),
+    prisma.endOfTermSubmission.findMany({
+      where: { ...scopeToRole.endOfTermSubmission(actor), internId, shiftingId },
+      select: { id: true, type: true, originalFilename: true, uploadedAt: true },
+    }),
+  ]);
+  return { sessions, endSubmissions };
+}
+
 export async function uploadSessionDocument(actor: SessionUser, sessionId: string, type: SessionDocumentType, file: File) {
   if (actor.role !== "STUDENT_INTERN" || !actor.internProfileId) throw new ForbiddenError("Only an intern can upload their session documents.");
   const session = await prisma.teachingSession.findFirst({ where: { ...scopeToRole.session(actor), id: sessionId } });
@@ -31,11 +49,22 @@ export async function uploadSessionDocument(actor: SessionUser, sessionId: strin
   });
 }
 
-export async function uploadEndSubmission(actor: SessionUser, type: EndOfTermSubmissionType, dueDate: Date, file: File) {
+export async function uploadEndSubmission(actor: SessionUser, type: EndOfTermSubmissionType, file: File) {
   if (actor.role !== "STUDENT_INTERN" || !actor.internProfileId) throw new ForbiddenError("Only an intern can upload end-of-term submissions.");
+  const internId = actor.internProfileId;
   const shifting = await prisma.shifting.findFirst({ where: { status: "ACTIVE" } }); if (!shifting) throw new Error("There is no active shifting.");
-  const key = `${actor.internProfileId}/${shifting.id}/end-term/${type.toLowerCase()}-${crypto.randomUUID()}-${safeFilename(file.name)}`; await uploadObject(key, file);
-  return prisma.$transaction(async (tx) => { const submission = await tx.endOfTermSubmission.upsert({ where: { internId_shiftingId_type: { internId: actor.internProfileId!, shiftingId: shifting.id, type } }, update: { dueDate, storageKey: key, originalFilename: file.name, mimeType: file.type, sizeBytes: file.size, uploadedAt: new Date() }, create: { internId: actor.internProfileId!, shiftingId: shifting.id, type, dueDate, storageKey: key, originalFilename: file.name, mimeType: file.type, sizeBytes: file.size, uploadedAt: new Date() } }); await writeAuditLog({ actor, action: "END_SUBMISSION_UPLOAD", entityType: "EndOfTermSubmission", entityId: submission.id, diff: { after: { type, filename: file.name } } as Prisma.InputJsonValue }, tx); return submission; });
+  const dueDate = shifting.endDate;
+  const key = `${internId}/${shifting.id}/end-term/${type.toLowerCase()}-${crypto.randomUUID()}-${safeFilename(file.name)}`; await uploadObject(key, file);
+  return prisma.$transaction(async (tx) => {
+    const where = { internId_shiftingId_type: { internId, shiftingId: shifting.id, type } };
+    const previous = await tx.endOfTermSubmission.findUnique({ where });
+    const fileData = { storageKey: key, originalFilename: file.name, mimeType: file.type, sizeBytes: file.size, uploadedAt: new Date() };
+    const submission = await tx.endOfTermSubmission.upsert({ where, update: { dueDate, ...fileData }, create: { internId, shiftingId: shifting.id, type, dueDate, ...fileData } });
+    // A replace overwrites the row, so the previous file is kept in the audit diff (its object stays in storage).
+    const diff = previous ? { before: { type, filename: previous.originalFilename, storageKey: previous.storageKey }, after: { type, filename: file.name } } : { after: { type, filename: file.name } };
+    await writeAuditLog({ actor, action: previous ? "END_SUBMISSION_REPLACE" : "END_SUBMISSION_UPLOAD", entityType: "EndOfTermSubmission", entityId: submission.id, diff: diff as Prisma.InputJsonValue }, tx);
+    return submission;
+  });
 }
 
 export async function getDocumentUrl(actor: SessionUser, documentId: string, kind: "session" | "end") {

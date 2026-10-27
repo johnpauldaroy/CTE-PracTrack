@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { scopeToRole } from "@/lib/scope";
 import { ForbiddenError } from "@/lib/session";
-import { computeOverallScore } from "@/lib/evaluation-score";
+import { computeCriterionScores, computeOverallScore } from "@/lib/evaluation-score";
 import { refreshAlertsForIntern } from "@/lib/services/alert-service";
 import type { SessionUser } from "@/lib/auth";
 import type { AssignSessionInput, SubmitEvaluationInput } from "@/lib/validation/session";
@@ -20,6 +20,71 @@ export async function listSessions(actor: SessionUser) {
     },
     orderBy: [{ date: "desc" }, { sessionNumber: "desc" }],
   });
+}
+
+/**
+ * One intern's sessions for one shifting, each evaluation with its
+ * per-criterion breakdown (admin drawer / supervisor intern detail). The
+ * internId only narrows the caller's session scope — it never widens it.
+ */
+export async function listInternSessions(actor: SessionUser, internId: string, shiftingId: string) {
+  const intern = await prisma.internProfile.findFirst({ where: { id: internId, ...scopeToRole.intern(actor) } });
+  if (!intern) throw new ForbiddenError("Intern is outside your scope.");
+  const shifting = await prisma.shifting.findUniqueOrThrow({ where: { id: shiftingId } });
+
+  const sessions = await prisma.teachingSession.findMany({
+    where: { ...scopeToRole.session(actor), internId, shiftingId },
+    include: {
+      cooperatingTeacher: { include: { user: { select: { name: true } } } },
+      documents: { where: { supersededByDocumentId: null }, select: { id: true, type: true } },
+      evaluation: {
+        include: {
+          submittedByUser: { select: { name: true } },
+          itemScores: { include: { item: { include: { criterion: true } } } },
+        },
+      },
+    },
+    orderBy: { sessionNumber: "asc" },
+  });
+
+  return {
+    shifting: { requiredTeachingSessions: shifting.requiredTeachingSessions, requiredFinalDemos: shifting.requiredFinalDemos },
+    sessions: sessions.map(({ evaluation, ...session }) => ({
+      ...session,
+      evaluation: evaluation && {
+        overallScore: evaluation.overallScore,
+        commendable: evaluation.commendable,
+        areasForImprovement: evaluation.areasForImprovement,
+        submittedAt: evaluation.submittedAt,
+        submittedBy: evaluation.submittedByUser.name,
+        criteria: criterionBreakdown(evaluation.itemScores),
+      },
+    })),
+  };
+}
+
+/**
+ * Scores each criterion from the items actually rated in this evaluation, so
+ * a later change to the instrument never re-scores a submitted evaluation.
+ */
+function criterionBreakdown(
+  itemScores: { itemId: string; rating: number; item: { criterion: { id: string; name: string; order: number; weightPercent: Prisma.Decimal } } }[],
+) {
+  const criteria = new Map<string, { id: string; name: string; order: number; weightPercent: number; itemIds: string[] }>();
+  for (const score of itemScores) {
+    const { criterion } = score.item;
+    const entry = criteria.get(criterion.id) ?? { id: criterion.id, name: criterion.name, order: criterion.order, weightPercent: Number(criterion.weightPercent), itemIds: [] };
+    entry.itemIds.push(score.itemId);
+    criteria.set(criterion.id, entry);
+  }
+  const ordered = [...criteria.values()].sort((a, b) => a.order - b.order);
+  const scores = computeCriterionScores(ordered, new Map(itemScores.map((s) => [s.itemId, s.rating])));
+  return ordered.map((criterion, index) => ({
+    name: criterion.name,
+    weightPercent: criterion.weightPercent,
+    mean: scores[index].mean,
+    weightedPercent: scores[index].weightedPercent,
+  }));
 }
 
 export async function listCtInterns(actor: SessionUser) {

@@ -20,7 +20,23 @@ export function computeOverallScore(
   criteria: CriterionWithItems[],
   ratings: Map<string, number>,
 ): number {
-  let weightedSum = 0;
+  return computeCriterionScores(criteria, ratings).reduce((sum, c) => sum + c.weightedPercent, 0);
+}
+
+export interface CriterionScore {
+  id: string;
+  /** Mean of the criterion's item ratings, 1-5. */
+  mean: number;
+  /** This criterion's contribution to the overall percentage (0..weightPercent). */
+  weightedPercent: number;
+}
+
+/** Per-criterion breakdown behind computeOverallScore — same rules, unrounded. */
+export function computeCriterionScores(
+  criteria: CriterionWithItems[],
+  ratings: Map<string, number>,
+): CriterionScore[] {
+  const scores: CriterionScore[] = [];
 
   for (const criterion of criteria) {
     if (criterion.itemIds.length === 0) continue;
@@ -34,12 +50,11 @@ export function computeOverallScore(
       itemSum += rating;
     }
 
-    const criterionMean = itemSum / criterion.itemIds.length; // 1-5
-    const criterionPercent = (criterionMean / 5) * criterion.weightPercent;
-    weightedSum += criterionPercent;
+    const mean = itemSum / criterion.itemIds.length; // 1-5
+    scores.push({ id: criterion.id, mean, weightedPercent: (mean / 5) * criterion.weightPercent });
   }
 
-  return weightedSum;
+  return scores;
 }
 
 /** Loads the active evaluation instrument (criteria + their active items) from config. */

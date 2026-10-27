@@ -7,31 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
-
-type MobileRole = "STUDENT_INTERN" | "SUPERVISOR" | "COOPERATING_TEACHER";
-
-const ROLE_TABS: { value: MobileRole; label: string }[] = [
-  { value: "STUDENT_INTERN", label: "Student Intern" },
-  { value: "SUPERVISOR", label: "Supervisor" },
-  { value: "COOPERATING_TEACHER", label: "Cooperating Teacher" },
-];
 
 interface LoginFormProps {
   variant: "admin" | "mobile";
-  /** role -> destination path. Falls back to "/" if the resolved role has no entry. */
-  roleHomeMap: Record<string, string>;
 }
 
-export function LoginForm({ variant, roleHomeMap }: LoginFormProps) {
+/**
+ * One sign-in form for every role. There is no role picker: the account's
+ * role decides the destination, and "/" redirects each role to its home.
+ */
+export function LoginForm({ variant }: LoginFormProps) {
   const router = useRouter();
-  const [role, setRole] = useState<MobileRole>("STUDENT_INTERN");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  const effectiveRole = variant === "admin" ? "ADMIN" : role;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,42 +30,25 @@ export function LoginForm({ variant, roleHomeMap }: LoginFormProps) {
       const result = await signIn("credentials", {
         email,
         password,
-        role: effectiveRole,
         redirect: false,
       });
 
       if (!result || result.error) {
-        setError("Incorrect email, password, or role. Please try again.");
+        setError(
+          result?.code === "pending_approval"
+            ? "Your account is awaiting approval by the CTE office."
+            : "Incorrect email or password. Please try again.",
+        );
         return;
       }
 
-      router.push(roleHomeMap[effectiveRole] ?? "/");
+      router.replace("/");
       router.refresh();
     });
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex w-full flex-col gap-5">
-      {variant === "mobile" && (
-        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
-          {ROLE_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => setRole(tab.value)}
-              className={cn(
-                "rounded-md px-2 py-2 text-xs font-medium transition-colors sm:text-sm",
-                role === tab.value
-                  ? "bg-secondary text-secondary-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -107,9 +80,9 @@ export function LoginForm({ variant, roleHomeMap }: LoginFormProps) {
         {isPending ? "Signing in…" : "Sign In"}
       </Button>
 
-      {variant === "mobile" && role === "COOPERATING_TEACHER" && (
+      {variant === "mobile" && (
         <a href="/m/register" className="text-center text-sm font-medium text-secondary hover:underline">
-          New here? Register as Cooperating Teacher
+          New cooperating teacher? Register here
         </a>
       )}
 

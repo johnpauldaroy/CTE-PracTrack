@@ -9,8 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditInternSheet } from "@/components/admin/accounts/edit-intern-sheet";
 import { InternDetailSheet } from "@/components/admin/accounts/intern-detail-sheet";
+import { AddInternSheet } from "@/components/interns/add-intern-sheet";
 import { toast } from "sonner";
-import { Eye, Pencil, Search, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -27,6 +28,7 @@ export function InternsAccountsTab() {
   const debouncedSearch = useDebouncedValue(search, 300);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
 
   const { data, isLoading, mutate } = useSWR<{ interns: InternRow[] }>(
     `/api/accounts/interns?search=${encodeURIComponent(debouncedSearch)}`,
@@ -49,13 +51,16 @@ export function InternsAccountsTab() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        Intern accounts are added by their assigned school&apos;s supervisor. Use this page to view,
-        edit, or remove accounts as needed.
+        Add intern accounts here or from the supervisor app. Use this page to view, edit, or remove
+        accounts as needed.
       </p>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search by name or ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 bg-card pl-9 shadow-xs" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Search by name or ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 bg-card pl-9 shadow-xs" />
+        </div>
+        <Button onClick={() => setIsAdding(true)}><Plus /> Add Intern</Button>
       </div>
 
       {isLoading ? (
@@ -114,6 +119,7 @@ export function InternsAccountsTab() {
         onSaved={() => mutate()}
       />
       <InternDetailSheet internId={viewingId} onOpenChange={(open) => !open && setViewingId(null)} />
+      <AddInternSheet variant="admin" open={isAdding} onOpenChange={setIsAdding} onSaved={() => mutate()} />
     </div>
   );
 }

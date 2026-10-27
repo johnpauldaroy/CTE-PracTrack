@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -21,6 +22,8 @@ export function CtRegistrationForm() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [schoolId, setSchoolId] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,7 +42,7 @@ export function CtRegistrationForm() {
       const res = await fetch("/api/ct-registration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, schoolId }),
+        body: JSON.stringify({ name, email, phone, schoolId, password, confirmPassword }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -112,6 +115,38 @@ export function CtRegistrationForm() {
           </SelectContent>
         </Select>
         {fieldErrors.schoolId && <p className="text-xs text-destructive">{fieldErrors.schoolId[0]}</p>}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="ct-password">Password</Label>
+        <PasswordInput
+          id="ct-password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          placeholder="At least 8 characters"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {fieldErrors.password && <p className="text-xs text-destructive">{fieldErrors.password[0]}</p>}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="ct-confirm-password">Confirm Password</Label>
+        <PasswordInput
+          id="ct-confirm-password"
+          required
+          autoComplete="new-password"
+          placeholder="Re-enter your password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
+        {fieldErrors.confirmPassword && (
+          <p className="text-xs text-destructive">{fieldErrors.confirmPassword[0]}</p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          You can sign in with this password once the CTE office approves your account.
+        </p>
       </div>
 
       <Button

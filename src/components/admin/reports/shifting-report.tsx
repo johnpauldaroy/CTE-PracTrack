@@ -1,4 +1,5 @@
-import { CalendarCheck, ClipboardList, Download, ShieldCheck } from "lucide-react";
+import { CalendarCheck, ClipboardList, Download, ShieldCheck, Users } from "lucide-react";
+import { PerStudentReport } from "@/components/admin/reports/per-student-report";
 import { formatManila } from "@/lib/timezone";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,9 @@ export function ShiftingReport({ data }: { data: Reports }) {
         <TabsTrigger value="compliance">
           <ClipboardList /> Session & Documents
         </TabsTrigger>
+        <TabsTrigger value="students">
+          <Users /> Per Student
+        </TabsTrigger>
         <TabsTrigger value="alerts">
           <ShieldCheck /> Alert History
         </TabsTrigger>
@@ -64,6 +68,9 @@ export function ShiftingReport({ data }: { data: Reports }) {
           empty="No teaching sessions recorded for this shifting."
           rows={data.compliance.map((r) => [r.school, r.onTrack, r.behind, r.sessionsLogged, r.missingLessonPlans, r.missingProgressReports])}
         />
+      </TabsContent>
+      <TabsContent value="students">
+        <PerStudentReport rows={data.interns} shiftingId={data.shifting?.id} />
       </TabsContent>
       <TabsContent value="alerts">
         <ReportTable

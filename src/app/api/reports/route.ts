@@ -14,9 +14,34 @@ export async function GET(request: NextRequest) {
     const suffix = reports.shifting
       ? `-${reports.shifting.semester.academicYear.label}-${reports.shifting.semester.name}-${reports.shifting.name}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-")
       : "";
+    const schoolId = request.nextUrl.searchParams.get("schoolId");
+    const q = request.nextUrl.searchParams.get("q")?.trim().toLowerCase();
     const rows =
       type === "attendance" || type === "compliance"
         ? reports[type]
+        : type === "interns"
+          ? reports.interns
+              .filter((row) => (!schoolId || row.schoolId === schoolId) && (!q || row.name.toLowerCase().includes(q) || row.schoolNumber.toLowerCase().includes(q)))
+              .map((row) => ({
+                school: row.school,
+                schoolId: row.schoolNumber,
+                intern: row.name,
+                cooperatingTeacher: row.cooperatingTeacher ?? "",
+                present: row.present,
+                late: row.late,
+                absences: row.absences,
+                excused: row.excused,
+                attendanceRate: `${row.attendanceRate}%`,
+                sessionsEvaluated: `${row.regularEvaluated}/${row.requiredTeachingSessions}`,
+                finalDemo: `${row.finalDemosEvaluated}/${row.requiredFinalDemos}`,
+                status: row.behind ? "Behind" : "On track",
+                averageScoreReferenceOnly: row.averageScore ? `${Number(row.averageScore).toFixed(2)}%` : "",
+                missingLessonPlans: row.missingLessonPlans,
+                missingProgressReports: row.missingProgressReports,
+                narrativeReport: row.narrativeSubmitted ? "Submitted" : "Missing",
+                teachingPortfolio: row.portfolioSubmitted ? "Submitted" : "Missing",
+                activeAlerts: row.activeAlerts,
+              }))
         : type === "alerts"
           ? reports.alerts.map((alert) => ({
               raised: formatManila(alert.raisedAt, "yyyy-MM-dd HH:mm"),

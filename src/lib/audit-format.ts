@@ -32,9 +32,11 @@ export const ACTION_LABELS: Record<string, string> = {
   CHECKIN_CONFIG_UPDATE: "Changed global check-in times",
   CT_APPROVE: "Approved cooperating teacher",
   CT_DELETE: "Removed cooperating teacher",
+  CT_PASSWORD_SET: "Set cooperating teacher password",
   CT_REGISTRATION_REJECT: "Rejected CT registration",
   DOCUMENT_REPLACE: "Replaced document",
   DOCUMENT_UPLOAD: "Uploaded document",
+  END_SUBMISSION_REPLACE: "Replaced end-of-term submission",
   END_SUBMISSION_UPLOAD: "Uploaded end-of-term submission",
   EVALUATION_SUBMIT: "Submitted evaluation",
   FLAGGING_RULES_UPDATE: "Changed flagging rules",
@@ -270,6 +272,8 @@ export function summarizeAudit(log: AuditLogLike, names: NameLookup = {}): strin
       return `${actor} rejected the registration of ${entity}.`;
     case "CT_DELETE":
       return `${actor} removed cooperating teacher ${entity}.`;
+    case "CT_PASSWORD_SET":
+      return `${actor} set a new password for ${entity}.`;
     case "EVALUATION_SUBMIT":
       return `${actor} submitted the evaluation for ${entity}${after.overallScore !== undefined ? ` — ${value("overallScore")}` : ""}.`;
     case "SESSION_ASSIGN":
@@ -278,7 +282,8 @@ export function summarizeAudit(log: AuditLogLike, names: NameLookup = {}): strin
     case "DOCUMENT_REPLACE":
       return `${actor} ${log.action === "DOCUMENT_REPLACE" ? "replaced" : "uploaded"} a ${value("type").toLowerCase()} for ${entity}${after.filename ? ` (${String(after.filename)})` : ""}.`;
     case "END_SUBMISSION_UPLOAD":
-      return `${actor} uploaded their ${value("type").toLowerCase()}${after.filename ? ` (${String(after.filename)})` : ""}.`;
+    case "END_SUBMISSION_REPLACE":
+      return `${actor} ${log.action === "END_SUBMISSION_REPLACE" ? "replaced" : "uploaded"} their ${value("type").toLowerCase()}${after.filename ? ` (${String(after.filename)})` : ""}.`;
     case "INTERN_ACCOUNT_CREATE":
       return `${actor} created the intern account for ${entity}.`;
     case "INTERN_ACCOUNT_UPDATE":

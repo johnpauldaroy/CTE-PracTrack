@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
-import { ForbiddenError } from "@/lib/session";
+import { FieldValidationError, ForbiddenError } from "@/lib/session";
 import { scopeToRole } from "@/lib/scope";
 import type { SessionUser } from "@/lib/auth";
 import type {
@@ -9,6 +9,7 @@ import type {
   CreateSupervisorInput,
   EditSupervisorInput,
   CreateInternInput,
+  AdminCreateInternInput,
 } from "@/lib/validation/account";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -16,7 +17,7 @@ function requireAdmin(user: SessionUser) {
   if (user.role !== "ADMIN") throw new ForbiddenError("Only the CTE office can manage accounts.");
 }
 
-// ── Interns (admin: view/edit-for-corrections/delete; never create — PRD §6.3) ──
+// ── Interns (admin: view/add/edit-for-corrections/delete — PRD §6.3) ──
 
 export async function listInterns(user: SessionUser, opts: { search?: string; schoolId?: string } = {}) {
   requireAdmin(user);
@@ -219,21 +220,38 @@ export async function deleteSupervisor(actor: SessionUser, supervisorProfileId: 
   });
 }
 
-// ── Supervisor-scoped intern creation (PRD §6.4) ──
+// ── Intern creation: supervisor (own school, PRD §6.4) or admin (any school) ──
 
-export async function createInternBySupervisor(actor: SessionUser, input: CreateInternInput) {
-  if (actor.role !== "SUPERVISOR" || !actor.supervisorSchoolId) {
-    throw new ForbiddenError("Only a supervisor with an assigned school can add interns.");
+export async function createIntern(actor: SessionUser, input: CreateInternInput | AdminCreateInternInput) {
+  let assignedSchoolId: string;
+  if (actor.role === "ADMIN") {
+    if (!("assignedSchoolId" in input)) throw new FieldValidationError({ assignedSchoolId: ["Select a school"] });
+    const school = await prisma.school.findFirst({ where: { id: input.assignedSchoolId, deletedAt: null } });
+    if (!school) throw new FieldValidationError({ assignedSchoolId: ["Select an active school"] });
+    assignedSchoolId = school.id;
+  } else if (actor.role === "SUPERVISOR" && actor.supervisorSchoolId) {
+    // A supervisor's school is NEVER taken from input — always their own
+    // assigned school, derived from the session.
+    assignedSchoolId = actor.supervisorSchoolId;
+  } else {
+    throw new ForbiddenError("Only the CTE office or a supervisor with an assigned school can add interns.");
   }
-  const supervisorSchoolId = actor.supervisorSchoolId;
 
-  const existing = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existing) throw new Error("An account with this email already exists.");
+  const [emailTaken, numberTaken] = await Promise.all([
+    prisma.user.findUnique({ where: { email: input.email } }),
+    prisma.internProfile.findUnique({
+      where: { assignedSchoolId_schoolNumber: { assignedSchoolId, schoolNumber: input.schoolNumber } },
+    }),
+  ]);
+  if (emailTaken || numberTaken) {
+    throw new FieldValidationError({
+      ...(emailTaken ? { email: ["An account with this email already exists."] } : {}),
+      ...(numberTaken ? { schoolNumber: ["This school ID is already used at this school."] } : {}),
+    });
+  }
 
   return prisma.$transaction(async (tx) => {
     const passwordHash = await bcrypt.hash(input.initialPassword, 10);
-    // schoolId is intentionally NEVER taken from input — always the acting
-    // supervisor's own assigned school, derived from the session.
     const user = await tx.user.create({
       data: {
         email: input.email,
@@ -246,7 +264,7 @@ export async function createInternBySupervisor(actor: SessionUser, input: Create
             schoolNumber: input.schoolNumber,
             course: input.course,
             yearLevel: input.yearLevel,
-            assignedSchoolId: supervisorSchoolId,
+            assignedSchoolId,
             createdByUserId: actor.id,
           },
         },
@@ -263,12 +281,13 @@ export async function createInternBySupervisor(actor: SessionUser, input: Create
         entityType: "InternProfile",
         entityId: internProfile.id,
         diff: {
-          after: { ...input, initialPassword: undefined, assignedSchoolId: supervisorSchoolId },
+          after: { ...input, initialPassword: undefined, assignedSchoolId },
         } as unknown as Prisma.InputJsonValue,
       },
       tx,
     );
 
-    return user;
+    // Never return the User row: it carries the password hash.
+    return internProfile;
   });
 }

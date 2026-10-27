@@ -4,7 +4,8 @@ import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShiftingTabs, type ShiftingOption } from "@/components/shifting-tabs";
+import { ShiftingTabs } from "@/components/shifting-tabs";
+import { useShiftingSelection } from "@/components/interns/use-shifting-selection";
 import { DtrTable } from "@/components/dtr-table";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,18 +21,10 @@ interface DtrResponse {
 }
 
 export function InternDtrTab({ internId }: { internId: string }) {
-  const { data: shiftingsData } = useSWR<{ shiftings: ShiftingOption[] }>("/api/shiftings/recent", fetcher);
-  const [selectedShiftingId, setSelectedShiftingId] = useState<string | null>(null);
+  const { shiftings, shiftingId: effectiveShiftingId, setShiftingId } = useShiftingSelection();
   const [excusingDate, setExcusingDate] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const defaultShifting =
-    shiftingsData?.shiftings.find((shifting) => shifting.status === "ACTIVE") ??
-    shiftingsData?.shiftings[0];
-  const effectiveShiftingId =
-    selectedShiftingId && shiftingsData?.shiftings.some((shifting) => shifting.id === selectedShiftingId)
-      ? selectedShiftingId
-      : (defaultShifting?.id ?? null);
 
   const { data, isLoading, mutate } = useSWR<DtrResponse>(
     effectiveShiftingId ? `/api/interns/${internId}/dtr?shiftingId=${effectiveShiftingId}` : null,
@@ -63,8 +56,8 @@ export function InternDtrTab({ internId }: { internId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {shiftingsData && (
-        <ShiftingTabs shiftings={shiftingsData.shiftings} selectedId={effectiveShiftingId} onSelect={setSelectedShiftingId} />
+      {shiftings.length > 0 && (
+        <ShiftingTabs shiftings={shiftings} selectedId={effectiveShiftingId} onSelect={setShiftingId} />
       )}
 
       {isLoading || !data ? (

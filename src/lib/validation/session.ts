@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+/** Query for per-intern, per-shifting reads (sessions, documents). */
+export const internShiftingQuerySchema = z.object({ shiftingId: z.string().min(1, "shiftingId is required") });
+
 export const assignSessionSchema = z.object({
   internId: z.string().min(1),
   date: z.coerce.date(),

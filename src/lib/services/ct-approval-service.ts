@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { ForbiddenError } from "@/lib/session";
@@ -107,6 +108,24 @@ export async function approveCt(actor: SessionUser, ctProfileId: string) {
     );
 
     return user;
+  });
+}
+
+/** Admin sets a new password for a pending or active CT, to be handed over in person. */
+export async function setCtPassword(actor: SessionUser, ctProfileId: string, password: string) {
+  requireAdmin(actor);
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  await prisma.$transaction(async (tx) => {
+    const profile = await tx.cooperatingTeacherProfile.findFirstOrThrow({
+      where: { id: ctProfileId, user: { deletedAt: null } },
+    });
+    await tx.user.update({ where: { id: profile.userId }, data: { passwordHash } });
+    // The password itself is never written to the audit diff.
+    await writeAuditLog(
+      { actor, action: "CT_PASSWORD_SET", entityType: "CooperatingTeacherProfile", entityId: ctProfileId },
+      tx,
+    );
   });
 }
 

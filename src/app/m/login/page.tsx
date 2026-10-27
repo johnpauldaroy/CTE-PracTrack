@@ -1,12 +1,6 @@
 import { BrandCrest } from "@/components/brand-crest";
 import { LoginForm } from "@/components/login-form";
 
-const ROLE_HOME: Record<string, string> = {
-  STUDENT_INTERN: "/m/intern",
-  SUPERVISOR: "/m/supervisor",
-  COOPERATING_TEACHER: "/m/ct",
-};
-
 export default function MobileLoginPage() {
   return (
     <div className="flex min-h-svh flex-1 items-center justify-center bg-background px-4 py-8">
@@ -25,7 +19,7 @@ export default function MobileLoginPage() {
         </div>
 
         <div className="mt-6">
-          <LoginForm variant="mobile" roleHomeMap={ROLE_HOME} />
+          <LoginForm variant="mobile" />
         </div>
       </div>
     </div>

@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AddInternSheet } from "@/components/interns/add-intern-sheet";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -17,25 +19,38 @@ interface InternRow {
   course: string;
   sessionsLogged: number;
   absences: number;
+  isFlagged: boolean;
+  isBehind: boolean;
 }
 
 export default function SupervisorInternsPage() {
-  const { data, isLoading } = useSWR<{ interns: InternRow[] }>("/api/supervisor/interns", fetcher);
+  const { data, isLoading, mutate } = useSWR<{ interns: InternRow[]; activeShifting: { requiredTeachingSessions: number } | null }>(
+    "/api/supervisor/interns",
+    fetcher,
+  );
+  const requiredSessions = data?.activeShifting?.requiredTeachingSessions;
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "flagged" | "behind">("all");
+  const [isAdding, setIsAdding] = useState(false);
 
   const interns = (data?.interns ?? []).filter((i) => {
     const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase()) || i.schoolNumber.includes(search);
-    const matchesFilter = filter === "all" || (filter === "flagged" && i.absences > 0) || (filter === "behind" && i.sessionsLogged < 9);
+    const matchesFilter = filter === "all" || (filter === "flagged" && i.isFlagged) || (filter === "behind" && i.isBehind);
     return matchesSearch && matchesFilter;
   });
 
-  const flaggedCount = data?.interns.filter((i) => i.absences > 0).length ?? 0;
-  const behindCount = data?.interns.filter((i) => i.sessionsLogged < 9).length ?? 0;
+  // Flagged / Behind come from active alerts, so they follow the configured flagging rules.
+  const flaggedCount = data?.interns.filter((i) => i.isFlagged).length ?? 0;
+  const behindCount = data?.interns.filter((i) => i.isBehind).length ?? 0;
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <h1 className="font-heading text-xl font-bold">Interns</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="font-heading text-xl font-bold">Interns</h1>
+        <Button size="sm" onClick={() => setIsAdding(true)}>
+          <Plus /> Add Intern
+        </Button>
+      </div>
 
       <div className="relative">
         <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -82,13 +97,13 @@ export default function SupervisorInternsPage() {
               <div>
                 <p className="font-medium">{intern.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {intern.sessionsLogged}/15 sessions · {intern.absences} absences
+                  {intern.sessionsLogged}{requiredSessions ? `/${requiredSessions}` : ""} sessions · {intern.absences} absences
                 </p>
               </div>
               <span
                 className={cn(
                   "size-2.5 rounded-full",
-                  intern.absences > 0 ? "bg-destructive" : "bg-success",
+                  intern.isFlagged ? "bg-destructive" : "bg-success",
                 )}
               />
             </Link>
@@ -98,6 +113,7 @@ export default function SupervisorInternsPage() {
           )}
         </div>
       )}
+      <AddInternSheet variant="supervisor" open={isAdding} onOpenChange={setIsAdding} onSaved={() => mutate()} />
     </div>
   );
 }

@@ -37,7 +37,19 @@ export const createInternSchema = z.object({
   initialPassword: z.string().min(8, "Password must be at least 8 characters"),
 });
 
+// Admin intern creation: same fields, plus the school (ADMIN has no session school).
+export const adminCreateInternSchema = createInternSchema.extend({
+  assignedSchoolId: z.string().min(1, "Select a school"),
+});
+
+// Admin-set password for a CT (e.g. a registration made before CTs chose
+// their own password, or "Forgot password? Contact the CTE office").
+export const setPasswordSchema = z.object({
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
 export type EditInternAccountInput = z.infer<typeof editInternAccountSchema>;
 export type CreateSupervisorInput = z.infer<typeof createSupervisorSchema>;
 export type EditSupervisorInput = z.infer<typeof editSupervisorSchema>;
 export type CreateInternInput = z.infer<typeof createInternSchema>;
+export type AdminCreateInternInput = z.infer<typeof adminCreateInternSchema>;

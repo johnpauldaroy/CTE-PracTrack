@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CtDetailSheet } from "@/components/admin/accounts/ct-detail-sheet";
-import { Check, Eye, Trash2 } from "lucide-react";
+import { SetCtPasswordDialog } from "@/components/admin/accounts/set-ct-password-dialog";
+import { Check, Eye, KeyRound, Trash2 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -35,6 +36,7 @@ export function CtsAccountsTab() {
     fetcher,
   );
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const [passwordFor, setPasswordFor] = useState<{ id: string; name: string } | null>(null);
 
   async function handleApprove(ct: PendingCt) {
     const res = await fetch(`/api/accounts/cts/${ct.id}/approve`, { method: "POST" });
@@ -94,6 +96,9 @@ export function CtsAccountsTab() {
                     <Button size="sm" className="bg-success text-success-foreground hover:bg-success/90" onClick={() => handleApprove(ct)}>
                       <Check /> Approve
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => setPasswordFor({ id: ct.id, name: ct.user.name })}>
+                      <KeyRound /> Set password
+                    </Button>
                     <Button variant="destructive" size="sm" onClick={() => handleDelete(ct.id, ct.user.name)}>
                       <Trash2 /> Delete
                     </Button>
@@ -142,6 +147,13 @@ export function CtsAccountsTab() {
                         <Eye /> View
                       </Button>
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPasswordFor({ id: ct.id, name: ct.user.name })}
+                      >
+                        <KeyRound /> Set password
+                      </Button>
+                      <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => handleDelete(ct.id, ct.user.name)}
@@ -165,6 +177,7 @@ export function CtsAccountsTab() {
       </div>
 
       <CtDetailSheet ctId={viewingId} onOpenChange={(open) => !open && setViewingId(null)} />
+      <SetCtPasswordDialog ct={passwordFor} onOpenChange={(open) => !open && setPasswordFor(null)} />
     </div>
   );
 }

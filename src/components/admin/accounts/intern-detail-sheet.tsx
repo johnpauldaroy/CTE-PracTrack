@@ -5,6 +5,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InternDtrTab } from "@/components/mobile/supervisor/intern-dtr-tab";
+import { InternSessionsTab } from "@/components/interns/intern-sessions-tab";
+import { InternEvaluationsTab } from "@/components/interns/intern-evaluations-tab";
+import { InternDocumentsTab } from "@/components/interns/intern-documents-tab";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -16,14 +19,6 @@ interface InternDetail {
   user: { name: string; email: string };
   assignedSchool: { name: string };
   cooperatingTeacher: { user: { name: string } } | null;
-}
-
-function NotYetAvailable({ module }: { module: string }) {
-  return (
-    <p className="py-10 text-center text-sm text-muted-foreground">
-      {module} isn&apos;t available yet — this module hasn&apos;t been built.
-    </p>
-  );
 }
 
 export function InternDetailSheet({
@@ -58,7 +53,7 @@ export function InternDetailSheet({
 
             <div className="px-4 pb-4">
               <Tabs defaultValue="dtr">
-                <TabsList>
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="dtr">DTR</TabsTrigger>
                   <TabsTrigger value="sessions">Sessions</TabsTrigger>
                   <TabsTrigger value="evaluations">Evaluations</TabsTrigger>
@@ -68,13 +63,13 @@ export function InternDetailSheet({
                   <InternDtrTab internId={data.intern.id} />
                 </TabsContent>
                 <TabsContent value="sessions" className="mt-4">
-                  <NotYetAvailable module="Teaching sessions" />
+                  <InternSessionsTab internId={data.intern.id} />
                 </TabsContent>
                 <TabsContent value="evaluations" className="mt-4">
-                  <NotYetAvailable module="Evaluations" />
+                  <InternEvaluationsTab internId={data.intern.id} />
                 </TabsContent>
                 <TabsContent value="documents" className="mt-4">
-                  <NotYetAvailable module="Documents" />
+                  <InternDocumentsTab internId={data.intern.id} />
                 </TabsContent>
               </Tabs>
             </div>

@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
         </div>
 
         <div className="mt-8">
-          <LoginForm variant="admin" roleHomeMap={{ ADMIN: "/dashboard" }} />
+          <LoginForm variant="admin" />
         </div>
       </div>
     </div>

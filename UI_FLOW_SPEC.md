@@ -40,19 +40,19 @@ Three login cards shown side by side on the slide for comparison, but they are t
 - Same crest + "CTE PracTrack" header
 - Subtitle: "Practice Teaching Monitoring System"
 - Sub-subtitle: "University of Antique — College of Teacher Education"
-- **Role selector tab bar** with three segments: **Student Intern** | **Supervisor** | **Cooperating Teacher** — active segment shown filled dark-navy with amber/gold text; inactive segments are plain white/gray text on white
+- ~~Role selector tab bar~~ — **removed (tester concerns, 2026-10-27)**: the account's role decides where the user lands, so there is no Student Intern / Supervisor / Cooperating Teacher choice.
 - Field: **Email** — placeholder `yourname@antiquespride.edu.ph`
 - Field: **Password** — placeholder "Enter your password"
 - Button: **Sign In** (full-width amber/gold)
-- Footer link (Student Intern / Supervisor tabs): "Forgot password? Contact the CTE office."
-- Footer link (Cooperating Teacher tab only): additional link **"New here? Register as Cooperating Teacher"** shown above the "Forgot password?" line — this is the only role with self-registration.
+- Footer link: "Forgot password? Contact the CTE office."
+- Footer link (always shown): **"New cooperating teacher? Register here"** above the "Forgot password?" line — CTs are the only role with self-registration.
 - Two arrows on the slide point from "Mobile App" label up into the Student Intern card and the Cooperating Teacher card, confirming both are reached from the same login screen via tab switching.
 
 **Color/style notes confirmed here**: dark navy (#1a1f3a-ish) for headers/active tab fill, amber/gold (#f5a623-ish) for primary buttons and crest icon accent, white cards on light gray page background, serif-ish wordmark treatment for "CTE PracTrack" is NOT used here (this appears to be a plain bold sans-serif on the login page, but see Admin dashboard note below where the wordmark itself uses a serif-style "Dashboard" heading).
 
 ### 1.2 CT self-registration (Page 2)
 
-Reached by tapping "New here? Register as Cooperating Teacher" on the Cooperating Teacher login tab. Two-panel slide showing the form and then the school-picker dropdown expanded.
+Reached by tapping "New cooperating teacher? Register here" on the mobile login. Two-panel slide showing the form and then the school-picker dropdown expanded.
 
 **Register as Cooperating Teacher** form:
 - Role tabs at top still visible (Student Intern / Supervisor / **Cooperating Teacher** active)
@@ -60,6 +60,7 @@ Reached by tapping "New here? Register as Cooperating Teacher" on the Cooperatin
 - Field: **Full Name** — placeholder "Mr./Ms. Juan Dela Cruz"
 - Field: **Email** — placeholder "yourname@gmail.com" (note: uses gmail.com placeholder, not institutional domain, unlike other fields — likely intentional since CTs are external school staff, not university accounts)
 - Field: **Phone Number** — placeholder "0917XXXXXXX"
+- Fields: **Password** + **Confirm Password** (added 2026-10-27 — the CT chooses their own password; sign-in stays blocked until admin approval)
 - Field: **School** — dropdown "Select your school..." — second panel shows it expanded as a scrollable list of ~15 named partner schools (Patria National High School, Pandan National Vocational School, Sebaste High School, Bitadton National High School, Northern Antique Vocational School, Sta. Justa National High School, Laboratory High School, Barbaza National High School, Laua-an National High School, Barbaza Central School, Jinalinan-Ipil Elementary School, Malabor Elementary School, Tibiao Central School, Culasi North Elementary School, Sebaste Central School)
 - Button: **Submit Registration** (dark navy fill, amber text — notably the INVERSE color treatment from the Sign In button, signaling this is a secondary/distinct action)
 - Footer link: "Back to Sign In"

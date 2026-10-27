@@ -15,6 +15,14 @@ export class ForbiddenError extends Error {
   }
 }
 
+/** A business-rule failure tied to specific form fields (e.g. an email that's already taken). */
+export class FieldValidationError extends Error {
+  constructor(public fieldErrors: Record<string, string[]>) {
+    super("Validation failed");
+    this.name = "FieldValidationError";
+  }
+}
+
 /** The request is valid but conflicts with current state (e.g. deleting a school that still has interns). */
 export class ConflictError extends Error {
   constructor(message = "Conflict") {

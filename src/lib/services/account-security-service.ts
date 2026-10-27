@@ -6,7 +6,7 @@ import type { ChangePasswordInput } from "@/lib/validation/config";
 
 /** Self-service change-password, available to every role from Profile/Settings. */
 export async function changeOwnPassword(actor: SessionUser, input: ChangePasswordInput) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: actor.id } });
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: actor.id }, omit: { passwordHash: false } });
 
   const currentMatches = await bcrypt.compare(input.currentPassword, user.passwordHash);
   if (!currentMatches) {

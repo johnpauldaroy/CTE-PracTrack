@@ -54,51 +54,100 @@ export async function getReports(actor: SessionUser, options: { shiftingId?: str
       interns: {
         where: internWhere,
         include: {
+          user: { select: { name: true } },
+          cooperatingTeacher: { include: { user: { select: { name: true } } } },
           attendanceRecords: { where: { shiftingId } },
-          teachingSessions: { where: { shiftingId }, include: { documents: { where: { supersededByDocumentId: null } } } },
+          teachingSessions: {
+            where: { shiftingId },
+            include: { documents: { where: { supersededByDocumentId: null } }, evaluation: { select: { overallScore: true } } },
+          },
+          endOfTermSubmissions: { where: { shiftingId }, select: { type: true, uploadedAt: true } },
+          alerts: { where: { shiftingId, status: "ACTIVE" }, select: { id: true } },
         },
+        orderBy: { user: { name: "asc" } },
       },
     },
     orderBy: { name: "asc" },
   });
 
-  const attendance = schools.map((school) => {
-    let present = 0, absences = 0, excused = 0, late = 0, attended = 0, expected = 0;
-    for (const intern of school.interns) {
+  // Every figure is computed once per intern; the per-school rows are sums of these.
+  const interns = schools.flatMap((school) =>
+    school.interns.map((intern) => {
       const rows = shifting ? materializeAttendanceRecords(intern.attendanceRecords, shifting) : [];
-      expected += rows.filter((row) => row.status !== "EXCUSED").length;
-      present += rows.filter((row) => row.status === "PRESENT").length;
-      late += rows.filter((row) => row.status === "LATE").length;
-      absences += rows.filter((row) => row.status === "ABSENT").length;
-      excused += rows.filter((row) => row.status === "EXCUSED").length;
-      attended += rows.filter((row) => row.status === "PRESENT" || row.status === "LATE").length;
-    }
+      const count = (status: string) => rows.filter((row) => row.status === status).length;
+      const present = count("PRESENT"), late = count("LATE"), absences = count("ABSENT"), excused = count("EXCUSED");
+      const expected = rows.length - excused;
+      const attended = present + late;
+
+      const sessions = intern.teachingSessions;
+      const regularEvaluated = sessions.filter((s) => s.status === "EVALUATED" && s.type === "REGULAR").length;
+      const finalDemosEvaluated = sessions.filter((s) => s.status === "EVALUATED" && s.type === "FINAL_DEMO").length;
+      const scores = sessions.flatMap((s) => (s.evaluation ? [s.evaluation.overallScore] : []));
+      const submitted = (type: string) => intern.endOfTermSubmissions.some((e) => e.type === type && e.uploadedAt);
+
+      return {
+        internId: intern.id,
+        schoolId: school.id,
+        school: school.name,
+        name: intern.user.name,
+        schoolNumber: intern.schoolNumber,
+        cooperatingTeacher: intern.cooperatingTeacher?.user.name ?? null,
+        present,
+        late,
+        absences,
+        excused,
+        attended,
+        expected,
+        attendanceRate: expected ? Math.round((attended / expected) * 10000) / 100 : 0,
+        sessionsLogged: sessions.length,
+        regularEvaluated,
+        requiredTeachingSessions: shifting?.requiredTeachingSessions ?? 0,
+        finalDemosEvaluated,
+        requiredFinalDemos: shifting?.requiredFinalDemos ?? 0,
+        behind: !!shifting && regularEvaluated < shifting.requiredTeachingSessions,
+        // Reference summary only — the system never computes official grades (CLAUDE.md).
+        // Decimal math; rounded only when displayed.
+        averageScore: scores.length ? scores.reduce((sum, score) => sum.plus(score)).div(scores.length).toString() : null,
+        missingLessonPlans: sessions.filter((s) => !s.documents.some((d) => d.type === "LESSON_PLAN")).length,
+        missingProgressReports: sessions.filter((s) => !s.documents.some((d) => d.type === "PROGRESS_REPORT")).length,
+        narrativeSubmitted: submitted("NARRATIVE_REPORT"),
+        portfolioSubmitted: submitted("TEACHING_PORTFOLIO"),
+        activeAlerts: intern.alerts.length,
+      };
+    }),
+  );
+
+  const attendance = schools.map((school) => {
+    const rows = interns.filter((intern) => intern.schoolId === school.id);
+    const sum = (key: "present" | "absences" | "excused" | "late" | "attended" | "expected") =>
+      rows.reduce((total, row) => total + row[key], 0);
+    const expected = sum("expected");
     return {
       schoolId: school.id,
       school: school.name,
-      interns: school.interns.length,
-      present,
-      absences,
-      excused,
-      late,
-      attendanceRate: expected ? Math.round((attended / expected) * 10000) / 100 : 0,
+      interns: rows.length,
+      present: sum("present"),
+      absences: sum("absences"),
+      excused: sum("excused"),
+      late: sum("late"),
+      attendanceRate: expected ? Math.round((sum("attended") / expected) * 10000) / 100 : 0,
     };
   });
 
   const compliance = schools.map((school) => {
-    let onTrack = 0, behind = 0, sessionsLogged = 0, missingLessonPlans = 0, missingProgressReports = 0;
-    for (const intern of school.interns) {
-      const sessions = intern.teachingSessions;
-      sessionsLogged += sessions.length;
-      const evaluated = sessions.filter((s) => s.status === "EVALUATED" && s.type === "REGULAR").length;
-      if (shifting && evaluated < shifting.requiredTeachingSessions) behind++;
-      else onTrack++;
-      for (const session of sessions) {
-        if (!session.documents.some((d) => d.type === "LESSON_PLAN")) missingLessonPlans++;
-        if (!session.documents.some((d) => d.type === "PROGRESS_REPORT")) missingProgressReports++;
-      }
-    }
-    return { schoolId: school.id, school: school.name, onTrack, behind, sessionsLogged, missingLessonPlans, missingProgressReports };
+    const rows = interns.filter((intern) => intern.schoolId === school.id);
+    const sum = (key: "sessionsLogged" | "missingLessonPlans" | "missingProgressReports") =>
+      rows.reduce((total, row) => total + row[key], 0);
+    const behind = rows.filter((row) => row.behind).length;
+    return {
+      schoolId: school.id,
+      school: school.name,
+      onTrack: rows.length - behind,
+      behind,
+      sessionsLogged: sum("sessionsLogged"),
+      missingLessonPlans: sum("missingLessonPlans"),
+      missingProgressReports: sum("missingProgressReports"),
+    };
   });
 
   const alerts = await prisma.alert.findMany({
@@ -108,7 +157,7 @@ export async function getReports(actor: SessionUser, options: { shiftingId?: str
   });
   const resolvedAlerts = alerts.filter((alert) => alert.status === "RESOLVED");
 
-  return { shifting, isArchive, attendance, compliance, alerts, resolvedAlerts };
+  return { shifting, isArchive, attendance, compliance, interns, alerts, resolvedAlerts };
 }
 
 export async function getDashboard(actor: SessionUser) {
