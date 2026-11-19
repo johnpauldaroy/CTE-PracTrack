@@ -46,13 +46,40 @@ export async function registerIntern(input: InternRegistrationInput) {
     prisma.section.findFirst({ where: { id: input.sectionId, isActive: true } }),
     prisma.school.findFirst({ where: { id: input.schoolId, deletedAt: null } }),
   ]);
+  // A registration whose email was never verified (for example the code email failed to send) can be
+  // started again: it cannot sign in, so refreshing its details and sending a new code is safe.
+  const resumable =
+    !!existing &&
+    existing.role === "STUDENT_INTERN" &&
+    existing.status === "PENDING" &&
+    !existing.emailVerifiedAt &&
+    !existing.deletedAt;
   const errors: Record<string, string[]> = {};
-  if (existing) errors.email = ["An account with this email already exists."];
+  if (existing && !resumable) errors.email = ["An account with this email already exists."];
   if (!section) errors.sectionId = ["Select a section from the list"];
   if (!school) errors.schoolId = ["Select a school from the list"];
   if (Object.keys(errors).length) throw new FieldValidationError(errors);
 
   const passwordHash = await bcrypt.hash(input.password, 10);
+
+  if (resumable && existing) {
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: existing.id }, data: { name: input.name, phone: input.phone, passwordHash } });
+      await tx.internProfile.update({
+        where: { userId: existing.id },
+        data: {
+          course: section!.course,
+          yearLevel: section!.yearLevel,
+          sectionId: section!.id,
+          assignedSchoolId: school!.id,
+          enrollmentStatus: "PENDING",
+          rejectionReason: null,
+        },
+      });
+    });
+    await issueCode(existing.id, existing.email, input.name);
+    return { email: existing.email };
+  }
 
   const user = await prisma.$transaction(async (tx) => {
     const created = await tx.user.create({

@@ -36,7 +36,14 @@ export async function sendEmail(message: { to: string; subject: string; text: st
     body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [message.to], subject: message.subject, text: message.text }),
   });
   if (!response.ok) {
-    console.error("[email] send failed", response.status, await response.text().catch(() => ""));
+    const detail = await response.text().catch(() => "");
+    console.error("[email] send failed", response.status, detail);
+    // Resend's shared test sender only delivers to the account owner until a domain is verified.
+    if (response.status === 403 && /verify a domain|own email/i.test(detail)) {
+      throw new Error(
+        "The verification email could not be delivered to this address because the sending domain is not set up yet. Please contact the CTE office.",
+      );
+    }
     throw new Error("We could not send the verification email. Please try again in a moment.");
   }
 }
