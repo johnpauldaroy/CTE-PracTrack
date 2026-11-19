@@ -5,7 +5,8 @@ export const editInternAccountSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(150),
   // Optional: self-registered interns may not have a school ID on file yet.
   schoolNumber: z.string().trim().max(30).optional().transform((value) => value || null),
-  course: z.string().trim().min(1, "Course is required").max(80),
+  // Picking a section sets course + year level (and links the intern to it).
+  sectionId: z.string().optional(),
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
   assignedSchoolId: z.string().min(1, "Select a school"),
 });
@@ -43,8 +44,8 @@ export const createInternSchema = z.object({
   name: z.string().trim().min(1, "Full name is required").max(150),
   schoolNumber: z.string().trim().min(1, "School ID is required").max(30),
   email: z.string().trim().toLowerCase().email("Enter a valid institutional email"),
-  course: z.string().trim().min(1, "Course is required").max(80),
-  yearLevel: z.string().trim().min(1, "Year level is required").max(30),
+  // Course and year level come from the section, so they cannot be mistyped.
+  sectionId: z.string().min(1, "Select a section"),
   initialPassword: z.string().min(8, "Password must be at least 8 characters"),
 });
 

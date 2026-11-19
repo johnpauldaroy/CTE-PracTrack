@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SectionSelect } from "@/components/interns/section-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -15,6 +16,8 @@ interface InternDetail {
   id: string;
   schoolNumber: string | null;
   course: string;
+  yearLevel?: string;
+  sectionId?: string | null;
   user: { name: string; email: string };
   assignedSchool: { id: string; name: string };
 }
@@ -36,6 +39,7 @@ export function EditInternSheet({
   const [name, setName] = useState("");
   const [schoolNumber, setSchoolNumber] = useState("");
   const [course, setCourse] = useState("");
+  const [sectionId, setSectionId] = useState("");
   const [email, setEmail] = useState("");
   const [assignedSchoolId, setAssignedSchoolId] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -47,7 +51,8 @@ export function EditInternSheet({
       onSuccess: ({ intern }) => {
         setName(intern.user.name);
         setSchoolNumber(intern.schoolNumber ?? "");
-        setCourse(intern.course);
+        setCourse(intern.yearLevel ? `${intern.course}, ${intern.yearLevel}` : intern.course);
+        setSectionId(intern.sectionId ?? "");
         setEmail(intern.user.email);
         setAssignedSchoolId(intern.assignedSchool.id);
       },
@@ -65,7 +70,7 @@ export function EditInternSheet({
       const res = await fetch(`/api/accounts/interns/${internId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, schoolNumber, course, email, assignedSchoolId }),
+        body: JSON.stringify({ name, schoolNumber, ...(sectionId ? { sectionId } : {}), email, assignedSchoolId }),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -105,14 +110,16 @@ export function EditInternSheet({
               id="edit-intern-schoolnum"
               value={schoolNumber}
               onChange={(e) => setSchoolNumber(e.target.value)}
-              required
             />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-intern-course">Course</Label>
-            <Input id="edit-intern-course" value={course} onChange={(e) => setCourse(e.target.value)} required />
-          </div>
+          <SectionSelect
+            id="edit-intern-section"
+            value={sectionId}
+            onChange={setSectionId}
+            error={fieldErrors.sectionId?.[0]}
+            currentLabel={course}
+          />
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="edit-intern-email">Email</Label>

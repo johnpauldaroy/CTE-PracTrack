@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { SectionSelect } from "@/components/interns/section-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-const EMPTY = { name: "", schoolNumber: "", email: "", course: "", yearLevel: "", initialPassword: "" };
+const EMPTY = { name: "", schoolNumber: "", email: "", initialPassword: "" };
 
 /**
  * Add Intern form. ADMIN picks the school; a SUPERVISOR's interns always go
@@ -31,6 +32,7 @@ export function AddInternSheet({
 }) {
   const [form, setForm] = useState(EMPTY);
   const [schoolId, setSchoolId] = useState("");
+  const [sectionId, setSectionId] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { data: schoolsData } = useSWR<{ schools: { id: string; name: string }[] }>(
@@ -42,6 +44,7 @@ export function AddInternSheet({
     if (!next) {
       setForm(EMPTY);
       setSchoolId("");
+      setSectionId("");
       setFieldErrors({});
     }
     onOpenChange(next);
@@ -55,7 +58,7 @@ export function AddInternSheet({
       const res = await fetch(variant === "admin" ? "/api/accounts/interns" : "/api/supervisor/interns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, ...(schoolId ? { assignedSchoolId: schoolId } : {}) }),
+        body: JSON.stringify({ ...form, sectionId, ...(schoolId ? { assignedSchoolId: schoolId } : {}) }),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -99,8 +102,7 @@ export function AddInternSheet({
           {field("name", "Full Name", { placeholder: "Juan Dela Cruz" })}
           {field("schoolNumber", "School ID", { placeholder: "2021-0045" })}
           {field("email", "Institutional Email", { type: "email", placeholder: "yourname@antiquespride.edu.ph" })}
-          {field("course", "Course", { placeholder: "BSEd-English" })}
-          {field("yearLevel", "Year Level", { placeholder: "4th Year" })}
+          <SectionSelect id="add-intern-section" value={sectionId} onChange={setSectionId} error={fieldErrors.sectionId?.[0]} />
 
           {variant === "admin" || (schoolsData?.schools.length ?? 0) > 1 ? (
             <div className="flex flex-col gap-2">

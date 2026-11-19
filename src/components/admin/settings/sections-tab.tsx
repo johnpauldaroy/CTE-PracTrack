@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
+const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface SectionRow {
@@ -82,11 +84,37 @@ export function SectionsTab() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="sec-course">Course</Label>
-              <Input id="sec-course" required placeholder="BSEd-English" value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })} />
+              <Input
+                id="sec-course"
+                required
+                list="sec-course-options"
+                placeholder="BSEd-English"
+                value={form.course}
+                onChange={(e) => setForm({ ...form, course: e.target.value })}
+              />
+              {/* Courses already used by a section are suggested so the same course is spelled the same way. */}
+              <datalist id="sec-course-options">
+                {[...new Set((data?.sections ?? []).map((section) => section.course))].map((course) => (
+                  <option key={course} value={course} />
+                ))}
+              </datalist>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="sec-year">Year level</Label>
-              <Input id="sec-year" required placeholder="4th Year" value={form.yearLevel} onChange={(e) => setForm({ ...form, yearLevel: e.target.value })} />
+              <select
+                id="sec-year"
+                required
+                value={form.yearLevel}
+                onChange={(e) => setForm({ ...form, yearLevel: e.target.value })}
+                className="h-9 w-full rounded-lg border bg-background px-3 text-sm"
+              >
+                <option value="">Select...</option>
+                {YEAR_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </select>
             </div>
             <Button type="submit" disabled={saving}>
               <Plus /> {saving ? "Adding…" : "Add"}

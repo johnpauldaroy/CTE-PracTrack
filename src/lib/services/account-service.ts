@@ -66,6 +66,12 @@ export async function getInternDetail(user: SessionUser, internId: string) {
 export async function updateInternAccount(actor: SessionUser, internId: string, input: EditInternAccountInput) {
   requireAdmin(actor);
 
+  // A chosen section sets course + year level; without one the intern keeps what they have.
+  const section = input.sectionId
+    ? await prisma.section.findFirst({ where: { id: input.sectionId, isActive: true } })
+    : null;
+  if (input.sectionId && !section) throw new FieldValidationError({ sectionId: ["Select an active section"] });
+
   return prisma.$transaction(async (tx) => {
     const before = await tx.internProfile.findFirstOrThrow({
       where: { id: internId },
@@ -80,8 +86,8 @@ export async function updateInternAccount(actor: SessionUser, internId: string, 
       where: { id: internId },
       data: {
         schoolNumber: input.schoolNumber,
-        course: input.course,
         assignedSchoolId: input.assignedSchoolId,
+        ...(section ? { sectionId: section.id, course: section.course, yearLevel: section.yearLevel } : {}),
       },
     });
 
@@ -99,7 +105,13 @@ export async function updateInternAccount(actor: SessionUser, internId: string, 
             course: before.course,
             assignedSchoolId: before.assignedSchoolId,
           },
-          after: input,
+          after: {
+            name: input.name,
+            email: input.email,
+            schoolNumber: input.schoolNumber,
+            course: section?.course ?? before.course,
+            assignedSchoolId: input.assignedSchoolId,
+          },
         } as unknown as Prisma.InputJsonValue,
       },
       tx,
@@ -328,6 +340,9 @@ export async function createIntern(actor: SessionUser, input: CreateInternInput 
     throw new ForbiddenError("Only the CTE office or a supervisor with an assigned school can add interns.");
   }
 
+  const section = await prisma.section.findFirst({ where: { id: input.sectionId, isActive: true } });
+  if (!section) throw new FieldValidationError({ sectionId: ["Select an active section"] });
+
   const [emailTaken, numberTaken] = await Promise.all([
     prisma.user.findUnique({ where: { email: input.email } }),
     prisma.internProfile.findUnique({
@@ -355,8 +370,9 @@ export async function createIntern(actor: SessionUser, input: CreateInternInput 
         internProfile: {
           create: {
             schoolNumber: input.schoolNumber,
-            course: input.course,
-            yearLevel: input.yearLevel,
+            course: section.course,
+            yearLevel: section.yearLevel,
+            sectionId: section.id,
             assignedSchoolId,
             createdByUserId: actor.id,
             enrollmentStatus: "ENROLLED",
