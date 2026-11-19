@@ -5,6 +5,7 @@ import { Download, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TablePager, usePaged } from "@/components/pagination";
 import { InternDetailSheet } from "@/components/admin/accounts/intern-detail-sheet";
 import type { getReports } from "@/lib/services/report-service";
 
@@ -29,6 +30,8 @@ export function PerStudentReport({ rows, shiftingId }: { rows: InternRow[]; shif
       (!schoolId || row.schoolId === schoolId) &&
       (!q || row.name.toLowerCase().includes(q) || (row.schoolNumber ?? "").toLowerCase().includes(q)),
   );
+
+  const paged = usePaged(filtered, 15, `${schoolId}|${q}`);
 
   const params = new URLSearchParams({ type: "interns" });
   if (shiftingId) params.set("shiftingId", shiftingId);
@@ -87,7 +90,7 @@ export function PerStudentReport({ rows, shiftingId }: { rows: InternRow[]; shif
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => (
+            {paged.rows.map((row) => (
               <tr
                 key={row.internId}
                 className="cursor-pointer border-t hover:bg-muted/50"
@@ -132,6 +135,7 @@ export function PerStudentReport({ rows, shiftingId }: { rows: InternRow[]; shif
             )}
           </tbody>
         </table>
+        <TablePager {...paged} onPage={paged.setPage} />
       </div>
 
       <InternDetailSheet internId={viewingId} onOpenChange={(open) => !open && setViewingId(null)} />

@@ -20,25 +20,39 @@ function requireAdmin(user: SessionUser) {
 
 // ── Interns (admin: view/add/edit-for-corrections/delete — PRD §6.3) ──
 
-export async function listInterns(user: SessionUser, opts: { search?: string; schoolId?: string } = {}) {
+export const INTERNS_PAGE_SIZE = 10;
+
+/** One page of interns (server-side paging, so the table stays fast with hundreds of accounts). */
+export async function listInterns(
+  user: SessionUser,
+  opts: { search?: string; schoolId?: string; page?: number; pageSize?: number } = {},
+) {
   requireAdmin(user);
-  return prisma.internProfile.findMany({
-    where: {
-      // Self-registered interns still waiting for confirmation are listed under Enrollment requests.
-      enrollmentStatus: "ENROLLED",
-      ...(opts.schoolId ? { assignedSchoolId: opts.schoolId } : {}),
-      ...(opts.search
-        ? {
-            OR: [
-              { schoolNumber: { contains: opts.search, mode: "insensitive" } },
-              { user: { name: { contains: opts.search, mode: "insensitive" } } },
-            ],
-          }
-        : {}),
-    },
+  const pageSize = Math.min(Math.max(opts.pageSize ?? INTERNS_PAGE_SIZE, 1), 100);
+  const where: Prisma.InternProfileWhereInput = {
+    // Self-registered interns still waiting for confirmation are listed under Enrollment requests.
+    enrollmentStatus: "ENROLLED",
+    ...(opts.schoolId ? { assignedSchoolId: opts.schoolId } : {}),
+    ...(opts.search
+      ? {
+          OR: [
+            { schoolNumber: { contains: opts.search, mode: "insensitive" } },
+            { user: { name: { contains: opts.search, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
+  const total = await prisma.internProfile.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(opts.page ?? 1, 1), pageCount);
+  const interns = await prisma.internProfile.findMany({
+    where,
     include: { user: true, assignedSchool: true },
-    orderBy: { schoolNumber: "asc" },
+    orderBy: [{ schoolNumber: "asc" }, { id: "asc" }],
+    skip: (page - 1) * pageSize,
+    take: pageSize,
   });
+  return { interns, total, page, pageSize, pageCount };
 }
 
 export async function getInternDetail(user: SessionUser, internId: string) {

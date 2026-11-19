@@ -9,6 +9,7 @@ import { AddInternSheet } from "@/components/interns/add-intern-sheet";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { ShowMoreButton, useShowMore } from "@/components/pagination";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -47,6 +48,8 @@ export default function SupervisorInternsPage() {
   });
 
   const schools = [...new Map((data?.interns ?? []).filter((i) => i.schoolId).map((i) => [i.schoolId!, i.schoolName ?? ""])).entries()];
+
+  const more = useShowMore(interns, 15, `${search}|${filter}|${schoolFilter}`);
 
   // Flagged / Behind come from active alerts, so they follow the configured flagging rules.
   const flaggedCount = data?.interns.filter((i) => i.isFlagged).length ?? 0;
@@ -124,7 +127,7 @@ export default function SupervisorInternsPage() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <div className="flex flex-col divide-y rounded-lg border">
-          {interns.map((intern) => (
+          {more.rows.map((intern) => (
             <Link
               key={intern.id}
               href={`/m/supervisor/interns/${intern.id}`}
@@ -149,6 +152,9 @@ export default function SupervisorInternsPage() {
             <p className="p-6 text-center text-sm text-muted-foreground">No interns found.</p>
           )}
         </div>
+      )}
+      {!isLoading && (
+        <ShowMoreButton hasMore={more.hasMore} remaining={more.remaining} onClick={more.showMore} />
       )}
       <AddInternSheet variant="supervisor" open={isAdding} onOpenChange={setIsAdding} onSaved={() => mutate()} />
     </div>

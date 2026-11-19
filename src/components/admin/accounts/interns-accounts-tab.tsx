@@ -13,6 +13,7 @@ import { AddInternSheet } from "@/components/interns/add-intern-sheet";
 import { EnrollmentRequests } from "@/components/enrollment-requests";
 import { toast } from "sonner";
 import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { TablePager } from "@/components/pagination";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -31,8 +32,11 @@ export function InternsAccountsTab() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
-  const { data, isLoading, mutate } = useSWR<{ interns: InternRow[] }>(
-    `/api/accounts/interns?search=${encodeURIComponent(debouncedSearch)}`,
+  // Server-side paging; the page resets to 1 whenever the search text changes.
+  const [pageState, setPageState] = useState({ page: 1, key: "" });
+  const page = pageState.key === debouncedSearch ? pageState.page : 1;
+  const { data, isLoading, mutate } = useSWR<{ interns: InternRow[]; total: number; page: number; pageSize: number; pageCount: number }>(
+    `/api/accounts/interns?search=${encodeURIComponent(debouncedSearch)}&page=${page}`,
     fetcher,
   );
 
@@ -76,7 +80,7 @@ export function InternsAccountsTab() {
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
           <Table>
             <TableHeader>
               <TableRow>
@@ -120,6 +124,15 @@ export function InternsAccountsTab() {
               )}
             </TableBody>
           </Table>
+          {data && (
+            <TablePager
+              page={data.page}
+              pageCount={data.pageCount}
+              total={data.total}
+              pageSize={data.pageSize}
+              onPage={(next) => setPageState({ page: next, key: debouncedSearch })}
+            />
+          )}
         </div>
       )}
 

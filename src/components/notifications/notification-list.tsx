@@ -6,6 +6,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { BellOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ShowMoreButton, useShowMore } from "@/components/pagination";
 import { useNotifications, type Notice } from "@/components/notifications/use-notifications";
 
 /**
@@ -24,7 +25,8 @@ export function NotificationList({
 }) {
   const router = useRouter();
   const { notifications, unreadCount, isLoading, error, markRead, markAllRead } = useNotifications();
-  const visible = limit ? notifications.slice(0, limit) : notifications;
+  const more = useShowMore(notifications, 15);
+  const visible = limit ? notifications.slice(0, limit) : more.rows;
 
   async function open(notice: Notice) {
     if (!notice.readAt) await markRead(notice.id);
@@ -89,6 +91,7 @@ export function NotificationList({
           </li>
         ))}
       </ul>
+      {!limit && <ShowMoreButton hasMore={more.hasMore} remaining={more.remaining} onClick={more.showMore} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShowMoreButton, useShowMore } from "@/components/pagination";
 import { LessonPlanBadge, type LessonPlanStatus } from "@/components/lesson-plan-badge";
 
 const fetcher = (url: string) =>
@@ -40,6 +41,7 @@ export function SessionList({
   actions?: (session: SessionRow) => React.ReactNode;
 }) {
   const { data, error, isLoading } = useSWR<{ sessions: SessionRow[] }>(SESSIONS_KEY, fetcher);
+  const more = useShowMore(data?.sessions ?? [], 8);
   if (isLoading) return <Skeleton className="h-40 w-full" />;
   if (error) return <p className="text-sm text-destructive">{error.message}</p>;
   if (!data?.sessions.length) {
@@ -47,7 +49,7 @@ export function SessionList({
   }
   return (
     <div className="flex flex-col gap-3">
-      {data.sessions.map((session) => (
+      {more.rows.map((session) => (
         <article key={session.id} className="rounded-xl border bg-card p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -95,6 +97,7 @@ export function SessionList({
           {actions?.(session)}
         </article>
       ))}
+      <ShowMoreButton hasMore={more.hasMore} remaining={more.remaining} onClick={more.showMore} />
     </div>
   );
 }

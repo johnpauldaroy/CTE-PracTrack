@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { formatManila } from "@/lib/timezone";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShowMoreButton, useShowMore } from "@/components/pagination";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -22,9 +23,10 @@ export function SchoolResolvedAlertsTab({ schoolId }: { schoolId: string }) {
     fetcher,
   );
 
-  if (isLoading) return <Skeleton className="h-64 w-full" />;
-
   const alerts = data?.alerts ?? [];
+  const more = useShowMore(alerts, 8);
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
 
   if (alerts.length === 0) {
     return <p className="py-8 text-center text-muted-foreground">No resolved alerts yet.</p>;
@@ -32,7 +34,7 @@ export function SchoolResolvedAlertsTab({ schoolId }: { schoolId: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {alerts.map((alert) => (
+      {more.rows.map((alert) => (
         <Card key={alert.id}>
           <CardContent className="flex flex-col gap-1 p-5">
             <p className="text-xs text-muted-foreground">
@@ -49,6 +51,7 @@ export function SchoolResolvedAlertsTab({ schoolId }: { schoolId: string }) {
           </CardContent>
         </Card>
       ))}
+      <ShowMoreButton hasMore={more.hasMore} remaining={more.remaining} onClick={more.showMore} />
     </div>
   );
 }

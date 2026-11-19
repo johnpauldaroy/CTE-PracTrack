@@ -10,8 +10,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") ?? undefined;
     const schoolId = searchParams.get("schoolId") ?? undefined;
-    const interns = await listInterns(user, { search, schoolId });
-    return NextResponse.json({ interns });
+    const page = Number(searchParams.get("page") ?? "1") || 1;
+    return NextResponse.json(await listInterns(user, { search, schoolId, page }));
   } catch (error) {
     return toApiErrorResponse(error);
   }

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { ShowMoreButton, useShowMore } from "@/components/pagination";
 
 export interface DtrRowData {
   id: string;
@@ -41,7 +42,9 @@ function Half({ timeIn, timeOut }: { timeIn: string | null; timeOut: string | nu
 }
 
 export function DtrTable({ rows }: { rows: DtrRowData[] }) {
+  const more = useShowMore(rows, 14);
   return (
+    <div className="flex flex-col gap-2">
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
         <thead>
@@ -54,7 +57,7 @@ export function DtrTable({ rows }: { rows: DtrRowData[] }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {more.rows.map((row) => (
             <tr key={row.id} className="border-b last:border-0">
               <td className="px-3 py-2">{row.date}</td>
               <td className="px-3 py-2">{row.day}</td>
@@ -84,6 +87,8 @@ export function DtrTable({ rows }: { rows: DtrRowData[] }) {
           )}
         </tbody>
       </table>
+    </div>
+    <ShowMoreButton hasMore={more.hasMore} remaining={more.remaining} onClick={more.showMore} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InternDetailSheet } from "@/components/admin/accounts/intern-detail-sheet";
+import { TablePager, usePaged } from "@/components/pagination";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -25,6 +26,7 @@ export function SchoolInternsTab({ schoolId }: { schoolId: string }) {
     fetcher,
   );
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const paged = usePaged(data?.interns ?? [], 10);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
@@ -46,7 +48,7 @@ export function SchoolInternsTab({ schoolId }: { schoolId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {interns.map((intern) => (
+            {paged.rows.map((intern) => (
               <TableRow key={intern.id}>
                 <TableCell>{intern.schoolNumber ?? "—"}</TableCell>
                 <TableCell className="font-medium">{intern.name}</TableCell>
@@ -78,6 +80,7 @@ export function SchoolInternsTab({ schoolId }: { schoolId: string }) {
             )}
           </TableBody>
         </Table>
+        <TablePager {...paged} onPage={paged.setPage} />
       </div>
 
       <InternDetailSheet internId={viewingId} onOpenChange={(open) => !open && setViewingId(null)} />

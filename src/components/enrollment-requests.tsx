@@ -7,6 +7,7 @@ import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatManila } from "@/lib/timezone";
+import { ShowMoreButton, useShowMore } from "@/components/pagination";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -53,6 +54,7 @@ export function EnrollmentRequests({ showSchool = true, emptyText }: { showSchoo
   }
 
   const requests = data?.requests ?? [];
+  const more = useShowMore(requests, 10);
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (!requests.length) {
     return <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">{emptyText ?? "No enrollment requests waiting."}</p>;
@@ -60,7 +62,7 @@ export function EnrollmentRequests({ showSchool = true, emptyText }: { showSchoo
 
   return (
     <ul className="flex flex-col gap-3">
-      {requests.map((request) => (
+      {more.rows.map((request) => (
         <li key={request.id} className="rounded-xl border bg-card p-4">
           <p className="font-semibold">{request.user.name}</p>
           <p className="text-sm text-muted-foreground">
@@ -104,6 +106,7 @@ export function EnrollmentRequests({ showSchool = true, emptyText }: { showSchoo
           )}
         </li>
       ))}
+      <ShowMoreButton hasMore={more.hasMore} remaining={more.remaining} onClick={more.showMore} />
     </ul>
   );
 }

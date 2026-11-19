@@ -10,6 +10,7 @@ import { SupervisorFormSheet } from "@/components/admin/accounts/supervisor-form
 import { SchoolChecklist } from "@/components/admin/accounts/school-checklist";
 import { formatManila } from "@/lib/timezone";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
+import { TablePager, usePaged } from "@/components/pagination";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -67,6 +68,7 @@ export function SupervisorsAccountsTab() {
   }
 
   const pending = pendingData?.supervisors ?? [];
+  const activePaged = usePaged(data?.supervisors ?? [], 10);
 
   return (
     <div className="flex flex-col gap-8">
@@ -77,7 +79,7 @@ export function SupervisorsAccountsTab() {
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Pending Approval ({pending.length})</h2>
-        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
           <Table>
             <TableHeader>
               <TableRow>
@@ -149,7 +151,7 @@ export function SupervisorsAccountsTab() {
         {isLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : (
-          <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+          <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -161,7 +163,7 @@ export function SupervisorsAccountsTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.supervisors.map((s) => (
+                {activePaged.rows.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">
                       {s.user.name}
@@ -195,6 +197,7 @@ export function SupervisorsAccountsTab() {
                 )}
               </TableBody>
             </Table>
+            <TablePager {...activePaged} onPage={activePaged.setPage} />
           </div>
         )}
       </div>

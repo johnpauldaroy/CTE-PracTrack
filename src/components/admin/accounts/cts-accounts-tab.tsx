@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CtDetailSheet } from "@/components/admin/accounts/ct-detail-sheet";
 import { SetCtPasswordDialog } from "@/components/admin/accounts/set-ct-password-dialog";
 import { Check, Eye, KeyRound, Trash2 } from "lucide-react";
+import { TablePager, usePaged } from "@/components/pagination";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -62,6 +63,8 @@ export function CtsAccountsTab() {
   }
 
   const pending = pendingData?.cts ?? [];
+  const pendingPaged = usePaged(pending, 10);
+  const activePaged = usePaged(activeData?.cts ?? [], 10);
 
   return (
     <div className="flex flex-col gap-8">
@@ -72,7 +75,7 @@ export function CtsAccountsTab() {
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Pending Approval ({pending.length})</h2>
-        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
           <Table>
             <TableHeader>
               <TableRow>
@@ -85,7 +88,7 @@ export function CtsAccountsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pending.map((ct) => (
+              {pendingPaged.rows.map((ct) => (
                 <TableRow key={ct.id} className="bg-accent/40">
                   <TableCell className="font-medium">{ct.user.name}</TableCell>
                   <TableCell>{ct.user.email}</TableCell>
@@ -114,6 +117,7 @@ export function CtsAccountsTab() {
               )}
             </TableBody>
           </Table>
+          <TablePager {...pendingPaged} onPage={pendingPaged.setPage} />
         </div>
       </div>
 
@@ -122,7 +126,7 @@ export function CtsAccountsTab() {
         {isLoading ? (
           <Skeleton className="h-40 w-full" />
         ) : (
-          <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+          <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -134,7 +138,7 @@ export function CtsAccountsTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeData?.cts.map((ct) => (
+                {activePaged.rows.map((ct) => (
                   <TableRow key={ct.id}>
                     <TableCell className="font-medium">{ct.user.name}</TableCell>
                     <TableCell>{ct.user.email}</TableCell>
@@ -172,6 +176,7 @@ export function CtsAccountsTab() {
                 )}
               </TableBody>
             </Table>
+            <TablePager {...activePaged} onPage={activePaged.setPage} />
           </div>
         )}
       </div>
