@@ -69,7 +69,10 @@ export interface SchoolDetailData {
   latitude: string;
   longitude: string;
   geofenceRadiusMeters: number;
-  timeInCutoff: string | null;
-  timeOutStart: string | null;
+  amTimeInCutoff: string | null;
+  amTimeOutStart: string | null;
+  pmTimeInCutoff: string | null;
+  pmTimeOutStart: string | null;
+  pmWindowOpensAt: string | null;
   supervisorProfile: { user: { id: string; name: string }; department: string } | null;
 }

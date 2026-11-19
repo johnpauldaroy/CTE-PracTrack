@@ -6,15 +6,16 @@ import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShiftingTabs, type ShiftingOption } from "@/components/shifting-tabs";
-import { DtrTable } from "@/components/dtr-table";
+import { DtrTable, type DtrRowData } from "@/components/dtr-table";
+import { AttendanceAlertBanner, type AttendanceLevel } from "@/components/attendance-alert-banner";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface DtrResponse {
   intern: { id: string };
-  rows: { id: string; date: string; day: string; timeIn: string | null; timeOut: string | null; status: string; excuseReason: string | null }[];
-  summary: { present: number; absent: number; incomplete: number; late: number; excused: number };
-  thresholds: { absenceEarlyWarning: number; earlyWarningExceeded: boolean };
+  rows: DtrRowData[];
+  summary: { present: number; absent: number; incomplete: number; late: number; excused: number; noDuty: number };
+  thresholds: { absenceEarlyWarning: number; dropEligibleAbove: number; level: AttendanceLevel };
 }
 
 export default function InternAttendancePage() {
@@ -57,14 +58,17 @@ export default function InternAttendancePage() {
           <p className="text-sm text-muted-foreground">
             {dtrData.summary.present} Present · {dtrData.summary.absent} Absent ·{" "}
             {dtrData.summary.incomplete} Incomplete · {dtrData.summary.late} Late
+            {dtrData.summary.excused > 0 && <> · {dtrData.summary.excused} Excused</>}
+            {dtrData.summary.noDuty > 0 && <> · {dtrData.summary.noDuty} No duty</>}
           </p>
 
-          {dtrData.thresholds.earlyWarningExceeded && (
-            <div className="rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground">
-              {dtrData.summary.absent} absences recorded. Early warning threshold is{" "}
-              {dtrData.thresholds.absenceEarlyWarning}. Please speak with your supervisor.
-            </div>
-          )}
+          <AttendanceAlertBanner
+            audience="intern"
+            level={dtrData.thresholds.level}
+            absences={dtrData.summary.absent}
+            earlyWarning={dtrData.thresholds.absenceEarlyWarning}
+            dropLimit={dtrData.thresholds.dropEligibleAbove}
+          />
 
           <DtrTable rows={dtrData.rows} />
         </>

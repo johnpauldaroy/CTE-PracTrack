@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AcademicYearCard } from "@/components/admin/semesters/academic-year-card";
 import { AddSemesterForm } from "@/components/admin/semesters/add-semester-form";
 import { ArchivedAcademicYears } from "@/components/admin/semesters/archived-academic-years";
+import { LockAccountsPanel } from "@/components/admin/semesters/lock-accounts-panel";
 import { ConfigureShiftingDialog } from "@/components/admin/semesters/configure-shifting-dialog";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -19,6 +20,7 @@ export interface ShiftingData {
   endDate: string;
   requiredTeachingSessions: number;
   requiredFinalDemos: number;
+  dutyWeekdays?: number[];
   status: "UPCOMING" | "ACTIVE" | "COMPLETED";
 }
 
@@ -88,6 +90,8 @@ export function SemestersPage() {
           )}
         </div>
       )}
+
+      <LockAccountsPanel />
 
       <ArchivedAcademicYears version={archivedVersion} />
 

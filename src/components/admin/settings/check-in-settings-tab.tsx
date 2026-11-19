@@ -3,51 +3,50 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CHECK_IN_FIELD_KEYS, CheckInFields, type CheckInValues } from "@/components/admin/check-in-fields";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-interface CheckInConfig {
-  timeInCutoff: string;
-  timeOutStart: string;
-}
-
 export function CheckInSettingsTab() {
-  const { data, isLoading, mutate } = useSWR<{ config: CheckInConfig }>("/api/config/check-in", fetcher);
+  const { data, isLoading, mutate } = useSWR<{ config: CheckInValues }>("/api/config/check-in", fetcher);
 
-  if (isLoading || !data?.config) return <Skeleton className="h-72 w-full max-w-md" />;
+  if (isLoading || !data?.config) return <Skeleton className="h-96 w-full max-w-md" />;
 
   return (
     <CheckInSettingsForm
-      key={`${data.config.timeInCutoff}:${data.config.timeOutStart}`}
+      key={CHECK_IN_FIELD_KEYS.map((key) => data.config[key]).join(":")}
       config={data.config}
       onSaved={() => void mutate()}
     />
   );
 }
 
-function CheckInSettingsForm({ config, onSaved }: { config: CheckInConfig; onSaved: () => void }) {
-  const [timeInCutoff, setTimeInCutoff] = useState(config.timeInCutoff);
-  const [timeOutStart, setTimeOutStart] = useState(config.timeOutStart);
+function CheckInSettingsForm({ config, onSaved }: { config: CheckInValues; onSaved: () => void }) {
+  const [values, setValues] = useState<CheckInValues>(() =>
+    Object.fromEntries(CHECK_IN_FIELD_KEYS.map((key) => [key, config[key]])) as CheckInValues,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/config/check-in", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timeInCutoff, timeOutStart }),
+        body: JSON.stringify(values),
       });
       const result = await res.json();
       if (!res.ok) {
-        toast.error(result.error ?? "Could not save check-in settings.");
+        if (result.fieldErrors) setFieldErrors(result.fieldErrors);
+        toast.error(
+          result.fieldErrors ? "Please fix the highlighted times." : (result.error ?? "Could not save check-in settings."),
+        );
         return;
       }
       toast.success("Check-in settings updated.");
@@ -61,34 +60,29 @@ function CheckInSettingsForm({ config, onSaved }: { config: CheckInConfig; onSav
     <Card className="max-w-md">
       <CardContent className="p-5">
         <p className="mb-4 text-sm text-muted-foreground">
-          Global check-in settings apply to all schools unless a school sets its own override.
+          Interns time in and out twice a day: morning and afternoon. These global times apply to all schools unless a
+          school sets its own override.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="ci-in" className="flex items-center gap-1.5">
-              <Clock className="size-3.5" /> Time In cut-off:
-            </Label>
-            <Input id="ci-in" type="time" required value={timeInCutoff} onChange={(e) => setTimeInCutoff(e.target.value)} />
-            <p className="text-xs text-muted-foreground">
-              Interns who record Time In after this time are marked Late.
+          <CheckInFields
+            idPrefix="ci"
+            values={values}
+            onChange={(key, value) => setValues((current) => ({ ...current, [key]: value }))}
+          />
+          {Object.entries(fieldErrors).map(([field, messages]) => (
+            <p key={field} className="text-xs text-destructive">
+              {messages[0]}
             </p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="ci-out" className="flex items-center gap-1.5">
-              <Clock className="size-3.5" /> Time Out start:
-            </Label>
-            <Input id="ci-out" type="time" required value={timeOutStart} onChange={(e) => setTimeOutStart(e.target.value)} />
-          </div>
+          ))}
 
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Saving…" : "Save"}
           </Button>
 
           <p className="text-xs text-muted-foreground">
-            To set a school-specific Time In cut-off, go to Schools → [School Name] → Overview →
-            Check-in Settings.
+            Changes apply from now on; days already recorded keep the status they were given. To set school-specific
+            times, go to Schools → [School Name] → Overview → Check-in Settings.
           </p>
         </form>
       </CardContent>

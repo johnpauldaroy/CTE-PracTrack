@@ -3,7 +3,8 @@ import { writeAuditLog } from "@/lib/audit";
 import { ConflictError, ForbiddenError } from "@/lib/session";
 import { assertSchoolInScope, scopeToRole } from "@/lib/scope";
 import type { SessionUser } from "@/lib/auth";
-import type { CreateSchoolInput, UpdateSchoolInput } from "@/lib/validation/school";
+import { CHECK_IN_FIELDS } from "@/lib/check-in-config";
+import type { CheckInOverrideInput, CreateSchoolInput, UpdateSchoolInput } from "@/lib/validation/school";
 import type { Prisma } from "@/generated/prisma/client";
 
 function requireAdmin(user: SessionUser) {
@@ -11,15 +12,28 @@ function requireAdmin(user: SessionUser) {
 }
 
 export async function listSchools(user: SessionUser) {
-  return prisma.school.findMany({
+  const schools = await prisma.school.findMany({
     where: { ...scopeToRole.school(user), deletedAt: null },
     include: {
-      supervisorProfile: { include: { user: true } },
+      supervisorLink: { include: { supervisorProfile: { include: { user: true } } } },
       // Deactivated (soft-deleted) intern accounts don't count as assigned.
       _count: { select: { interns: { where: { user: { deletedAt: null } } } } },
     },
     orderBy: [{ type: "asc" }, { name: "asc" }],
   });
+  return schools.map(withSupervisor);
+}
+
+/**
+ * UI-facing shape: a school's single supervisor as `supervisorProfile`
+ * (flattened from the SupervisorSchool link, so screens do not change).
+ */
+function withSupervisor<T extends { supervisorLink: { supervisorProfile: unknown } | null }>(school: T) {
+  const { supervisorLink, ...rest } = school;
+  return {
+    ...rest,
+    supervisorProfile: (supervisorLink?.supervisorProfile ?? null) as NonNullable<T["supervisorLink"]>["supervisorProfile"] | null,
+  };
 }
 
 /** Soft-deleted schools, newest first, for the "Recently deleted" list (admin only). */
@@ -37,10 +51,10 @@ export async function getSchoolDetail(user: SessionUser, schoolId: string) {
   const school = await prisma.school.findFirstOrThrow({
     where: { id: schoolId, deletedAt: null },
     include: {
-      supervisorProfile: { include: { user: true } },
+      supervisorLink: { include: { supervisorProfile: { include: { user: true } } } },
     },
   });
-  return school;
+  return withSupervisor(school);
 }
 
 export async function createSchool(actor: SessionUser, input: CreateSchoolInput) {
@@ -97,19 +111,12 @@ export async function updateSchool(actor: SessionUser, schoolId: string, input: 
   });
 }
 
-export async function updateCheckInOverride(
-  actor: SessionUser,
-  schoolId: string,
-  input: { timeInCutoff: string | null; timeOutStart: string | null },
-) {
+export async function updateCheckInOverride(actor: SessionUser, schoolId: string, input: CheckInOverrideInput) {
   requireAdmin(actor);
 
   return prisma.$transaction(async (tx) => {
     const before = await tx.school.findFirstOrThrow({ where: { id: schoolId, deletedAt: null } });
-    const updated = await tx.school.update({
-      where: { id: schoolId },
-      data: { timeInCutoff: input.timeInCutoff, timeOutStart: input.timeOutStart },
-    });
+    const updated = await tx.school.update({ where: { id: schoolId }, data: input });
 
     await writeAuditLog(
       {
@@ -118,8 +125,8 @@ export async function updateCheckInOverride(
         entityType: "School",
         entityId: schoolId,
         diff: {
-          before: { timeInCutoff: before.timeInCutoff, timeOutStart: before.timeOutStart },
-          after: { timeInCutoff: updated.timeInCutoff, timeOutStart: updated.timeOutStart },
+          before: Object.fromEntries(CHECK_IN_FIELDS.map((field) => [field, before[field]])),
+          after: Object.fromEntries(CHECK_IN_FIELDS.map((field) => [field, updated[field]])),
         } as unknown as Prisma.InputJsonValue,
       },
       tx,
@@ -140,33 +147,25 @@ export async function assignSupervisor(actor: SessionUser, schoolId: string, sup
       where: { id: supervisorUserId, role: "SUPERVISOR", status: "ACTIVE", deletedAt: null },
       include: { supervisorProfile: true },
     });
-    if (!supervisorUser.supervisorProfile) {
-      throw new Error("Selected user does not have a supervisor profile.");
-    }
+    const profile = supervisorUser.supervisorProfile;
+    if (!profile) throw new Error("Selected user does not have a supervisor profile.");
 
-    const previousSupervisorProfile = await tx.supervisorProfile.findFirst({
+    const previous = await tx.supervisorSchool.findUnique({
       where: { schoolId },
-      include: { user: true },
+      include: { supervisorProfile: { include: { user: true } } },
     });
+    if (previous?.supervisorProfileId === profile.id) return school;
 
-    // A school has at most one assigned supervisor (PRD §6.2) — clear any
-    // existing assignment on this school before setting the new one.
-    if (previousSupervisorProfile && previousSupervisorProfile.id !== supervisorUser.supervisorProfile.id) {
-      await tx.supervisorProfile.update({
-        where: { id: previousSupervisorProfile.id },
-        data: { schoolId: null },
-      });
+    // A school has at most one supervisor (PRD §6.2): replace the existing link. The new
+    // supervisor keeps any other schools they already cover.
+    if (previous) {
+      await tx.supervisorSchool.delete({ where: { id: previous.id } });
       await tx.schoolSupervisorHistory.updateMany({
         where: { schoolId, unassignedAt: null },
         data: { unassignedAt: new Date() },
       });
     }
-
-    await tx.supervisorProfile.update({
-      where: { id: supervisorUser.supervisorProfile.id },
-      data: { schoolId },
-    });
-
+    await tx.supervisorSchool.create({ data: { supervisorProfileId: profile.id, schoolId } });
     await tx.schoolSupervisorHistory.create({
       data: { schoolId, supervisorUserId: supervisorUser.id, assignedByUserId: actor.id },
     });
@@ -178,8 +177,8 @@ export async function assignSupervisor(actor: SessionUser, schoolId: string, sup
         entityType: "School",
         entityId: schoolId,
         diff: {
-          before: previousSupervisorProfile?.user
-            ? { supervisorUserId: previousSupervisorProfile.user.id, supervisorName: previousSupervisorProfile.user.name }
+          before: previous
+            ? { supervisorUserId: previous.supervisorProfile.user.id, supervisorName: previous.supervisorProfile.user.name }
             : null,
           after: { supervisorUserId: supervisorUser.id, supervisorName: supervisorUser.name },
         } as unknown as Prisma.InputJsonValue,
@@ -205,7 +204,7 @@ export async function deleteSchool(actor: SessionUser, schoolId: string) {
     const school = await tx.school.findFirst({
       where: { id: schoolId, deletedAt: null },
       include: {
-        supervisorProfile: { include: { user: { select: { id: true, name: true } } } },
+        supervisorLink: { include: { supervisorProfile: { include: { user: { select: { id: true, name: true } } } } } },
         _count: {
           select: {
             interns: { where: { user: { deletedAt: null } } },
@@ -226,8 +225,8 @@ export async function deleteSchool(actor: SessionUser, schoolId: string) {
       );
     }
 
-    if (school.supervisorProfile) {
-      await tx.supervisorProfile.update({ where: { id: school.supervisorProfile.id }, data: { schoolId: null } });
+    if (school.supervisorLink) {
+      await tx.supervisorSchool.delete({ where: { id: school.supervisorLink.id } });
       await tx.schoolSupervisorHistory.updateMany({
         where: { schoolId, unassignedAt: null },
         data: { unassignedAt: new Date() },
@@ -245,9 +244,9 @@ export async function deleteSchool(actor: SessionUser, schoolId: string) {
         diff: {
           before: {
             ...serializeSchool(school),
-            supervisorName: school.supervisorProfile?.user.name ?? null,
+            supervisorName: school.supervisorLink?.supervisorProfile.user.name ?? null,
           },
-          after: { deleted: true, supervisorUnassigned: !!school.supervisorProfile },
+          after: { deleted: true, supervisorUnassigned: !!school.supervisorLink },
         } as unknown as Prisma.InputJsonValue,
       },
       tx,

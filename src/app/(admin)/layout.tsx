@@ -1,16 +1,16 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getLiveSession } from "@/lib/session";
 import { AdminBottomNav, AdminHeader } from "@/components/admin/admin-header";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const user = await getLiveSession();
+  if (!user || user.role !== "ADMIN") {
     redirect("/login");
   }
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
-      <AdminHeader user={session.user} />
+      <AdminHeader user={user} />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
       <AdminBottomNav />
     </div>

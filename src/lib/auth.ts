@@ -14,9 +14,28 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
-/** Correct password, but the CT registration hasn't been approved yet. */
+/** Correct password, but the CT / supervisor registration hasn't been approved yet. */
 class PendingApprovalError extends CredentialsSignin {
   code = "pending_approval";
+}
+
+/** Correct password, but an admin has locked the account (e.g. the semester ended). */
+class AccountLockedError extends CredentialsSignin {
+  code = "account_locked";
+}
+
+/** Intern registered but has not entered the emailed verification code yet. */
+class EmailNotVerifiedError extends CredentialsSignin {
+  code = "email_not_verified";
+}
+
+/** Intern verified their email; the school's supervisor has not confirmed enrollment yet. */
+class EnrollmentPendingError extends CredentialsSignin {
+  code = "enrollment_pending";
+}
+
+class EnrollmentRejectedError extends CredentialsSignin {
+  code = "enrollment_rejected";
 }
 
 // Full config (Node.js runtime only — routes, server components, server
@@ -38,7 +57,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: email.toLowerCase() },
           omit: { passwordHash: false },
           include: {
-            supervisorProfile: true,
+            supervisorProfile: { include: { schools: { select: { schoolId: true } } } },
             ctProfile: true,
             internProfile: true,
           },
@@ -49,8 +68,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const passwordMatches = await bcrypt.compare(password, user.passwordHash);
         if (!passwordMatches) return null;
 
-        // Only reveal "pending" to someone who already proved the password.
-        if (user.status === "PENDING") throw new PendingApprovalError();
+        // Only reveal account state to someone who already proved the password.
+        if (user.status === "LOCKED" && !user.deletedAt) throw new AccountLockedError();
+        if (user.status === "PENDING") {
+          if (user.role === "STUDENT_INTERN") {
+            if (!user.emailVerifiedAt) throw new EmailNotVerifiedError();
+            if (user.internProfile?.enrollmentStatus === "REJECTED") throw new EnrollmentRejectedError();
+            throw new EnrollmentPendingError();
+          }
+          throw new PendingApprovalError();
+        }
         if (user.status !== "ACTIVE") return null;
 
         const sessionUser: SessionUser = {
@@ -58,7 +85,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
-          supervisorSchoolId: user.supervisorProfile?.schoolId ?? null,
+          supervisorSchoolIds: user.supervisorProfile?.schools.map((s) => s.schoolId) ?? [],
           cooperatingTeacherProfileId: user.ctProfile?.id ?? null,
           internProfileId: user.internProfile?.id ?? null,
         };

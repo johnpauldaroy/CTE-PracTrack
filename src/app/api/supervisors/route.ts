@@ -9,7 +9,7 @@ export async function GET() {
     await requireRole("ADMIN");
     const supervisors = await prisma.user.findMany({
       where: { role: "SUPERVISOR", status: "ACTIVE", deletedAt: null },
-      include: { supervisorProfile: true },
+      include: { supervisorProfile: { include: { schools: { select: { schoolId: true } } } } },
       orderBy: { name: "asc" },
     });
     return NextResponse.json({ supervisors });

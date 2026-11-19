@@ -9,7 +9,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     role?: SessionUser["role"];
-    supervisorSchoolId?: string | null;
+    supervisorSchoolIds?: string[];
     cooperatingTeacherProfileId?: string | null;
     internProfileId?: string | null;
   }

@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import type { SessionUser } from "@/lib/auth";
 
 export class UnauthorizedError extends Error {
@@ -31,16 +32,62 @@ export class ConflictError extends Error {
   }
 }
 
+/** The account was locked or deactivated after the user signed in. */
+export class AccountInactiveError extends UnauthorizedError {
+  constructor() {
+    super("Your account is locked or inactive. Please contact the CTE office.");
+    this.name = "AccountInactiveError";
+  }
+}
+
+/**
+ * Re-reads the account from the database so an admin's lock, a deactivation, or a
+ * change of a supervisor's schools takes effect on the very next request instead of
+ * when the JWT expires. One primary-key lookup. Returns null when the account may
+ * no longer sign in.
+ */
+async function resolveLiveUser(tokenUser: SessionUser): Promise<SessionUser | null> {
+  const row = await prisma.user.findUnique({
+    where: { id: tokenUser.id },
+    select: {
+      status: true,
+      deletedAt: true,
+      role: true,
+      supervisorProfile: { select: { schools: { select: { schoolId: true } } } },
+      ctProfile: { select: { id: true } },
+      internProfile: { select: { id: true } },
+    },
+  });
+  if (!row || row.deletedAt || row.status !== "ACTIVE") return null;
+  return {
+    ...tokenUser,
+    role: row.role,
+    supervisorSchoolIds: row.supervisorProfile?.schools.map((entry) => entry.schoolId) ?? [],
+    cooperatingTeacherProfileId: row.ctProfile?.id ?? null,
+    internProfileId: row.internProfile?.id ?? null,
+  };
+}
+
 /**
  * Every API route and server action that touches scoped data calls this
  * first. There is no other way to obtain the acting user's identity — role
  * and scope always come from the session, never from the request body
- * (CLAUDE.md).
+ * (CLAUDE.md). Role and school/intern scope are re-derived from the database
+ * on every call, so they can never be stale.
  */
 export async function requireSession(): Promise<SessionUser> {
   const session = await auth();
   if (!session?.user) throw new UnauthorizedError();
-  return session.user;
+  const live = await resolveLiveUser(session.user);
+  if (!live) throw new AccountInactiveError();
+  return live;
+}
+
+/** For server-component layouts: the live user, or null when signed out or no longer active. */
+export async function getLiveSession(): Promise<SessionUser | null> {
+  const session = await auth();
+  if (!session?.user) return null;
+  return resolveLiveUser(session.user);
 }
 
 /** Throws unless the session's role is one of `roles`. */

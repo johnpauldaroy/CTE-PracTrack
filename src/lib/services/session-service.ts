@@ -5,7 +5,7 @@ import { ForbiddenError } from "@/lib/session";
 import { computeCriterionScores, computeOverallScore } from "@/lib/evaluation-score";
 import { refreshAlertsForIntern } from "@/lib/services/alert-service";
 import type { SessionUser } from "@/lib/auth";
-import type { AssignSessionInput, SubmitEvaluationInput } from "@/lib/validation/session";
+import type { AssignSessionInput, ReviewLessonPlanInput, SubmitEvaluationInput } from "@/lib/validation/session";
 import type { Prisma } from "@/generated/prisma/client";
 
 export async function listSessions(actor: SessionUser) {
@@ -131,6 +131,10 @@ export async function assignSession(actor: SessionUser, input: AssignSessionInpu
         gradeSection: input.gradeSection,
         topic: input.topic,
         type: input.type,
+        notes: input.notes || null,
+        lessonPlanDueDate: input.lessonPlanDueDate
+          ? new Date(`${input.lessonPlanDueDate.toISOString().slice(0, 10)}T00:00:00.000Z`)
+          : null,
       },
     });
     await tx.notification.create({
@@ -138,7 +142,7 @@ export async function assignSession(actor: SessionUser, input: AssignSessionInpu
         userId: intern.userId,
         type: "SESSION_ASSIGNED",
         title: "New teaching session",
-        body: `${input.subject} — ${input.topic} has been assigned.`,
+        body: `${input.subject} — ${input.topic} has been assigned.${input.notes ? ` Note from your cooperating teacher: ${input.notes}` : ""}`,
         href: "/m/intern/sessions",
       },
     });
@@ -147,7 +151,7 @@ export async function assignSession(actor: SessionUser, input: AssignSessionInpu
       action: "SESSION_ASSIGN",
       entityType: "TeachingSession",
       entityId: session.id,
-      diff: { after: { internId: intern.id, shiftingId: shifting.id, sessionNumber: session.sessionNumber } } as Prisma.InputJsonValue,
+      diff: { after: { internId: intern.id, shiftingId: shifting.id, sessionNumber: session.sessionNumber, notes: input.notes || null } } as Prisma.InputJsonValue,
     }, tx);
     return session;
   });
@@ -172,6 +176,10 @@ export async function submitEvaluation(actor: SessionUser, sessionId: string, in
   });
   if (!session) throw new ForbiddenError("Session is outside your assigned scope.");
   if (session.evaluation) throw new Error("This evaluation has already been submitted and is immutable.");
+  // The intern may not demo (and so cannot be evaluated) until the CT has approved the lesson plan.
+  if (session.lessonPlanStatus !== "APPROVED") {
+    throw new Error("Approve the intern's lesson plan before evaluating this session.");
+  }
 
   const criteriaRows = await prisma.evaluationCriterion.findMany({
     where: { isActive: true },
@@ -223,4 +231,66 @@ export async function submitEvaluation(actor: SessionUser, sessionId: string, in
   // Pace and pending-evaluation rules depend on evaluated sessions.
   await refreshAlertsForIntern(session.internId);
   return evaluation;
+}
+
+/**
+ * The cooperating teacher's review of a submitted lesson plan: Approve (the intern may now
+ * demo and be evaluated) or Return with a note (the intern fixes and re-submits). Scoped to
+ * the CT's own sessions through scopeToRole, never a client-supplied id alone.
+ */
+export async function reviewLessonPlan(actor: SessionUser, sessionId: string, input: ReviewLessonPlanInput) {
+  if (actor.role !== "COOPERATING_TEACHER" || !actor.cooperatingTeacherProfileId) {
+    throw new ForbiddenError("Only the cooperating teacher can review a lesson plan.");
+  }
+  const session = await prisma.teachingSession.findFirst({
+    where: { ...scopeToRole.session(actor), id: sessionId },
+    include: { intern: { select: { userId: true } } },
+  });
+  if (!session) throw new ForbiddenError("Session is outside your assigned scope.");
+  if (session.status === "EVALUATED") {
+    throw new Error("This session has already been evaluated.");
+  }
+  if (session.lessonPlanStatus !== "SUBMITTED") {
+    throw new Error("There is no submitted lesson plan waiting for review.");
+  }
+
+  const approve = input.action === "approve";
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.teachingSession.update({
+      where: { id: sessionId },
+      data: approve
+        ? {
+            lessonPlanStatus: "APPROVED",
+            lessonPlanApprovedAt: new Date(),
+            lessonPlanApprovedByUserId: actor.id,
+            lessonPlanReturnNote: null,
+          }
+        : { lessonPlanStatus: "RETURNED", lessonPlanReturnNote: input.action === "return" ? input.note : null },
+    });
+    await tx.notification.create({
+      data: {
+        userId: session.intern.userId,
+        type: approve ? "LESSON_PLAN_APPROVED" : "LESSON_PLAN_RETURNED",
+        title: approve ? "Lesson plan approved" : "Lesson plan returned",
+        body: approve
+          ? `Your lesson plan for Session ${session.sessionNumber} (${session.subject}) is approved. You are ready for the demo.`
+          : `Your lesson plan for Session ${session.sessionNumber} needs changes: ${input.action === "return" ? input.note : ""}`,
+        href: "/m/intern/sessions",
+      },
+    });
+    await writeAuditLog(
+      {
+        actor,
+        action: approve ? "LESSON_PLAN_APPROVE" : "LESSON_PLAN_RETURN",
+        entityType: "TeachingSession",
+        entityId: sessionId,
+        diff: {
+          before: { status: session.lessonPlanStatus },
+          after: { status: updated.lessonPlanStatus, ...(input.action === "return" ? { reason: input.note } : {}) },
+        } as Prisma.InputJsonValue,
+      },
+      tx,
+    );
+    return updated;
+  });
 }

@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SchoolChecklist } from "@/components/admin/accounts/school-checklist";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -16,13 +16,8 @@ type SheetMode = { mode: "add" } | { mode: "edit"; id: string } | null;
 interface SupervisorDetail {
   id: string;
   department: string;
-  schoolId: string | null;
-  user: { name: string; email: string };
-}
-
-interface SchoolOption {
-  id: string;
-  name: string;
+  schools: { schoolId: string }[];
+  user: { id: string; name: string; email: string };
 }
 
 export function SupervisorFormSheet({
@@ -38,7 +33,8 @@ export function SupervisorFormSheet({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
-  const [schoolId, setSchoolId] = useState<string>("");
+  const [schoolIds, setSchoolIds] = useState<string[]>([]);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
   const [initialPassword, setInitialPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,19 +49,20 @@ export function SupervisorFormSheet({
         setName(editing.user.name);
         setEmail(editing.user.email);
         setDepartment(editing.department);
-        setSchoolId(editing.schoolId ?? "");
+        setSchoolIds(editing.schools.map((entry) => entry.schoolId));
+        setUserId(editing.user.id);
       },
       revalidateOnFocus: false,
     },
   );
-  const { data: schoolsData } = useSWR<{ schools: SchoolOption[] }>("/api/schools", fetcher);
 
   function handleOpenChange(open: boolean) {
     if (!open) {
       setName("");
       setEmail("");
       setDepartment("");
-      setSchoolId("");
+      setSchoolIds([]);
+      setUserId(undefined);
       setInitialPassword("");
       setFieldErrors({});
     }
@@ -81,8 +78,8 @@ export function SupervisorFormSheet({
       const url = isEdit ? `/api/accounts/supervisors/${mode.id}` : "/api/accounts/supervisors";
       const method = isEdit ? "PATCH" : "POST";
       const body = isEdit
-        ? { name, email, department, schoolId: schoolId || null }
-        : { name, email, department, schoolId: schoolId || null, initialPassword };
+        ? { name, email, department, schoolIds }
+        : { name, email, department, schoolIds, initialPassword };
 
       const res = await fetch(url, {
         method,
@@ -135,23 +132,12 @@ export function SupervisorFormSheet({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label>School Assigned</Label>
-            <Select
-              value={schoolId}
-              onValueChange={(v) => setSchoolId(v ?? "")}
-              items={Object.fromEntries((schoolsData?.schools ?? []).map((s) => [s.id, s.name]))}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Not yet assigned" />
-              </SelectTrigger>
-              <SelectContent>
-                {schoolsData?.schools.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Schools covered</Label>
+            <SchoolChecklist selected={schoolIds} onChange={setSchoolIds} supervisorUserId={userId} />
+            <p className="text-xs text-muted-foreground">
+              A supervisor can cover more than one school; each school has one supervisor.
+            </p>
+            {fieldErrors.schoolIds && <p className="text-xs text-destructive">{fieldErrors.schoolIds[0]}</p>}
           </div>
 
           {!isEdit && (

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { ForbiddenError } from "@/lib/session";
 import { materializeAttendanceRecords } from "@/lib/services/dtr-service";
+import { buildDutyCalendar, loadNonDutyRows } from "@/lib/attendance-calendar";
+import { todayManilaDateOnly } from "@/lib/timezone";
 import { ensureAlertsFresh } from "@/lib/services/alert-service";
 import type { SessionUser } from "@/lib/auth";
 import type { Prisma } from "@/generated/prisma/client";
@@ -62,6 +64,7 @@ export async function getReports(actor: SessionUser, options: { shiftingId?: str
             include: { documents: { where: { supersededByDocumentId: null } }, evaluation: { select: { overallScore: true } } },
           },
           endOfTermSubmissions: { where: { shiftingId }, select: { type: true, uploadedAt: true } },
+          progressReports: { where: { period: { shiftingId } }, select: { periodId: true } },
           alerts: { where: { shiftingId, status: "ACTIVE" }, select: { id: true } },
         },
         orderBy: { user: { name: "asc" } },
@@ -70,13 +73,24 @@ export async function getReports(actor: SessionUser, options: { shiftingId?: str
     orderBy: { name: "asc" },
   });
 
+  const nonDutyRows = shifting ? await loadNonDutyRows(shifting.id) : [];
+  const progressPeriods = shifting ? await prisma.progressReportPeriod.findMany({ where: { shiftingId: shifting.id } }) : [];
+  const today = todayManilaDateOnly();
+
   // Every figure is computed once per intern; the per-school rows are sums of these.
   const interns = schools.flatMap((school) =>
     school.interns.map((intern) => {
-      const rows = shifting ? materializeAttendanceRecords(intern.attendanceRecords, shifting) : [];
+      const rows = shifting
+        ? materializeAttendanceRecords(
+            intern.attendanceRecords,
+            shifting,
+            buildDutyCalendar(shifting, nonDutyRows, { schoolId: school.id, internId: intern.id }),
+          )
+        : [];
       const count = (status: string) => rows.filter((row) => row.status === status).length;
       const present = count("PRESENT"), late = count("LATE"), absences = count("ABSENT"), excused = count("EXCUSED");
-      const expected = rows.length - excused;
+      // Excused and no-duty days are not expected attendance.
+      const expected = rows.length - excused - count("NO_DUTY");
       const attended = present + late;
 
       const sessions = intern.teachingSessions;
@@ -108,8 +122,12 @@ export async function getReports(actor: SessionUser, options: { shiftingId?: str
         // Reference summary only — the system never computes official grades (CLAUDE.md).
         // Decimal math; rounded only when displayed.
         averageScore: scores.length ? scores.reduce((sum, score) => sum.plus(score)).div(scores.length).toString() : null,
-        missingLessonPlans: sessions.filter((s) => !s.documents.some((d) => d.type === "LESSON_PLAN")).length,
-        missingProgressReports: sessions.filter((s) => !s.documents.some((d) => d.type === "PROGRESS_REPORT")).length,
+        // Lesson plan not in front of the CT yet (never submitted, or returned for revision).
+        missingLessonPlans: sessions.filter((s) => s.lessonPlanStatus === "NOT_SUBMITTED" || s.lessonPlanStatus === "RETURNED").length,
+        // Periodic progress reports past their due date with nothing submitted.
+        missingProgressReports: progressPeriods.filter(
+          (period) => period.dueDate.getTime() < today.getTime() && !intern.progressReports.some((r) => r.periodId === period.id),
+        ).length,
         narrativeSubmitted: submitted("NARRATIVE_REPORT"),
         portfolioSubmitted: submitted("TEACHING_PORTFOLIO"),
         activeAlerts: intern.alerts.length,

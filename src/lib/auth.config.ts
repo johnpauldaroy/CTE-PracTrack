@@ -9,7 +9,8 @@ export interface SessionUser {
   name: string;
   role: Role;
   // Populated only for the role it applies to; every other field is undefined.
-  supervisorSchoolId?: string | null;
+  // Every school this supervisor covers (a supervisor may have several; a school has one supervisor).
+  supervisorSchoolIds?: string[];
   cooperatingTeacherProfileId?: string | null;
   internProfileId?: string | null;
 }
@@ -32,7 +33,7 @@ export const authConfig = {
       if (user) {
         const sessionUser = user as unknown as SessionUser;
         token.role = sessionUser.role;
-        token.supervisorSchoolId = sessionUser.supervisorSchoolId;
+        token.supervisorSchoolIds = sessionUser.supervisorSchoolIds;
         token.cooperatingTeacherProfileId = sessionUser.cooperatingTeacherProfileId;
         token.internProfileId = sessionUser.internProfileId;
         token.name = sessionUser.name;
@@ -47,7 +48,7 @@ export const authConfig = {
         email: (token.email as string) ?? "",
         name: (token.name as string) ?? "",
         role: token.role as Role,
-        supervisorSchoolId: token.supervisorSchoolId as string | null | undefined,
+        supervisorSchoolIds: token.supervisorSchoolIds as string[] | undefined,
         cooperatingTeacherProfileId: token.cooperatingTeacherProfileId as string | null | undefined,
         internProfileId: token.internProfileId as string | null | undefined,
       };

@@ -6,15 +6,19 @@ import { createIntern } from "@/lib/services/account-service";
 import { listInternsForSchool } from "@/lib/services/intern-service";
 import { getActiveShifting } from "@/lib/services/shifting-service";
 import { ForbiddenError } from "@/lib/session";
+import { assertSchoolInScope } from "@/lib/scope";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await requireSession();
-    if (user.role !== "SUPERVISOR" || !user.supervisorSchoolId) {
+    if (user.role !== "SUPERVISOR" || !user.supervisorSchoolIds?.length) {
       throw new ForbiddenError("Only a supervisor with an assigned school can view this list.");
     }
+    // Optional ?schoolId= narrows the list to one of the supervisor's schools.
+    const schoolId = new URL(request.url).searchParams.get("schoolId");
+    if (schoolId) assertSchoolInScope(user, schoolId);
     const activeShifting = await getActiveShifting();
-    const interns = await listInternsForSchool(user, user.supervisorSchoolId, activeShifting?.id ?? null);
+    const interns = await listInternsForSchool(user, schoolId, activeShifting?.id ?? null);
     return NextResponse.json({
       interns,
       activeShifting: activeShifting

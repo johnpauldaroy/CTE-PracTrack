@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { scopeToRole } from "@/lib/scope";
 import { getFlaggingRuleConfig } from "@/lib/check-in-config";
+import { getDutyCalendarForIntern, type DutyCalendar } from "@/lib/attendance-calendar";
 import { formatManila, todayManilaDateOnly } from "@/lib/timezone";
 import type { SessionUser } from "@/lib/auth";
-import type { AttendanceRecord, Shifting } from "@/generated/prisma/client";
+import type { AttendanceRecord, AttendanceStatus, Shifting } from "@/generated/prisma/client";
 
 export interface DtrSummary {
   present: number;
@@ -11,17 +12,24 @@ export interface DtrSummary {
   incomplete: number;
   late: number;
   excused: number;
+  noDuty: number;
 }
 
 export interface DtrRow {
   id: string;
   date: string; // yyyy-MM-dd (Manila)
   day: string; // e.g. "Wed"
-  timeIn: string | null;
-  timeOut: string | null;
+  amIn: string | null;
+  amOut: string | null;
+  pmIn: string | null;
+  pmOut: string | null;
   status: string;
   excuseReason: string | null;
+  noDutyReason: string | null;
 }
+
+/** The highest attendance rule an intern currently meets (thresholds come from FlaggingRuleConfig). */
+export type AttendanceLevel = "NONE" | "EARLY_WARNING" | "DROP_ELIGIBLE";
 
 /**
  * Full DTR (all rows + summary counts) for one intern in one shifting. Used
@@ -33,17 +41,18 @@ export async function getDtr(user: SessionUser, internId: string, shiftingId: st
   // the specific intern is in scope by checking the intern row itself.
   const intern = await prisma.internProfile.findFirstOrThrow({
     where: { id: internId, ...scopeToRole.intern(user) },
+    include: { assignedSchool: { select: { id: true, name: true } } },
   });
   const shifting = await prisma.shifting.findUniqueOrThrow({ where: { id: shiftingId } });
 
-  const records = await prisma.attendanceRecord.findMany({
-    where: { internId: intern.id, shiftingId },
-    orderBy: { date: "desc" },
-  });
+  const [records, calendar] = await Promise.all([
+    prisma.attendanceRecord.findMany({ where: { internId: intern.id, shiftingId }, orderBy: { date: "desc" } }),
+    getDutyCalendarForIntern(shifting, intern),
+  ]);
 
-  const allRecords = materializeAttendanceRecords(records, shifting);
+  const allRecords = materializeAttendanceRecords(records, shifting, calendar);
 
-  const summary: DtrSummary = { present: 0, absent: 0, incomplete: 0, late: 0, excused: 0 };
+  const summary: DtrSummary = { present: 0, absent: 0, incomplete: 0, late: 0, excused: 0, noDuty: 0 };
   const rows: DtrRow[] = allRecords.map((r) => {
     switch (r.status) {
       case "PRESENT":
@@ -61,63 +70,83 @@ export async function getDtr(user: SessionUser, internId: string, shiftingId: st
       case "EXCUSED":
         summary.excused++;
         break;
+      case "NO_DUTY":
+        summary.noDuty++;
+        break;
     }
+    const time = (value: Date | null) => (value ? formatManila(value, "h:mm a") : null);
     return {
       id: r.id,
       date: formatManila(r.date, "yyyy-MM-dd"),
       day: formatManila(r.date, "EEE"),
-      timeIn: r.timeIn ? formatManila(r.timeIn, "h:mm a") : null,
-      timeOut: r.timeOut ? formatManila(r.timeOut, "h:mm a") : null,
+      amIn: time(r.amTimeIn),
+      amOut: time(r.amTimeOut),
+      pmIn: time(r.pmTimeIn),
+      pmOut: time(r.pmTimeOut),
       status: r.status,
       excuseReason: r.excuseReason,
+      noDutyReason: r.noDutyReason,
     };
   });
 
   const flaggingConfig = await getFlaggingRuleConfig();
-  // Excused days are excluded from all threshold counts (PRD §10 Q4 drafted
-  // default — the point of excusing is that it doesn't count against the
-  // intern; flagged as an open question in PROGRESS.md, implementing the
-  // drafted default here rather than silently picking a different one).
-  const countingAbsences = summary.absent;
+  // Excused and no-duty days never count as absences (PRD §10 Q4 drafted default).
+  const absences = summary.absent;
+  const earlyWarningExceeded = absences >= flaggingConfig.absenceEarlyWarning;
+  const dropEligible = absences > flaggingConfig.dropEligibleAbove;
+  const level: AttendanceLevel = dropEligible ? "DROP_ELIGIBLE" : earlyWarningExceeded ? "EARLY_WARNING" : "NONE";
 
   return {
-    intern: { id: intern.id, schoolNumber: intern.schoolNumber, course: intern.course },
+    intern: {
+      id: intern.id,
+      schoolNumber: intern.schoolNumber,
+      course: intern.course,
+      schoolId: intern.assignedSchool.id,
+      schoolName: intern.assignedSchool.name,
+    },
+    viewerRole: user.role,
+    shiftingId,
     rows,
     summary,
     thresholds: {
       absenceEarlyWarning: flaggingConfig.absenceEarlyWarning,
       dropEligibleAbove: flaggingConfig.dropEligibleAbove,
-      earlyWarningExceeded: countingAbsences >= flaggingConfig.absenceEarlyWarning,
-      approachingDropLimit: countingAbsences >= flaggingConfig.dropEligibleAbove - 3 && countingAbsences <= flaggingConfig.dropEligibleAbove,
-      dropEligible: countingAbsences > flaggingConfig.dropEligibleAbove,
+      earlyWarningExceeded,
+      dropEligible,
+      level,
     },
   };
 }
 
-type MaterializedRecord = Pick<
-  AttendanceRecord,
-  "id" | "date" | "timeIn" | "timeOut" | "status" | "excuseReason"
->;
+export interface MaterializedRecord {
+  id: string;
+  date: Date;
+  status: AttendanceStatus;
+  excuseReason: string | null;
+  amTimeIn: Date | null;
+  amTimeOut: Date | null;
+  pmTimeIn: Date | null;
+  pmTimeOut: Date | null;
+  /** Set only on a synthesized no-duty row. */
+  noDutyReason: string | null;
+}
 
 /**
- * A day within the shifting's date range with no AttendanceRecord row is
- * ABSENT (PRD §6.5: "a day within the shifting with neither is ABSENT") —
- * there is no row to represent it, so one is synthesized for display/count
- * purposes only (never persisted). Only days that are over are materialized:
- * today is shown only once it has a real row (a punch or an excuse) — an
- * intern who hasn't timed in yet this morning is not absent yet — and future
- * shifting days aren't "absences" either.
+ * Builds the day-by-day list for a shifting. A day with no AttendanceRecord row
+ * is ABSENT only if attendance was expected on it (PRD §6.5) — the duty calendar
+ * decides: a weekday outside the shifting's duty weekdays is skipped (never an
+ * absence), and a no-class/no-duty day is synthesized as NO_DUTY. Such rows are
+ * for display/count purposes only and are never persisted.
  *
- * OPEN QUESTION not resolved here: the PRD never defines a school calendar
- * or excludes weekends/holidays from this rule, so every day in range
- * (Mon-Sun) is currently treated as a day attendance is expected. If the
- * CTE's real practicum calendar only expects weekdays, this needs a
- * "school day" concept added to Shifting/School before this is correct —
- * flagging rather than silently assuming weekdays-only.
+ * Only days that are over become absences: today is shown only once it has a
+ * real row (a punch or an excuse) — an intern who hasn't timed in yet this
+ * morning is not absent yet — and future shifting days aren't absences either.
+ * A real row always wins (a punch on a weekend or no-duty day is kept as is).
  */
 export function materializeAttendanceRecords(
   records: AttendanceRecord[],
   shifting: Shifting,
+  calendar: DutyCalendar,
 ): MaterializedRecord[] {
   const byDate = new Map(records.map((r) => [r.date.getTime(), r]));
   const today = todayManilaDateOnly();
@@ -131,16 +160,23 @@ export function materializeAttendanceRecords(
   ) {
     const existing = byDate.get(cursor.getTime());
     if (existing) {
-      result.push(existing);
-    } else if (cursor.getTime() < today.getTime()) {
-      result.push({
-        id: `absent-${shifting.id}-${cursor.toISOString().slice(0, 10)}`,
-        date: new Date(cursor),
-        timeIn: null,
-        timeOut: null,
-        status: "ABSENT",
-        excuseReason: null,
-      });
+      result.push({ ...existing, noDutyReason: null });
+      continue;
+    }
+    const kind = calendar.kind(cursor);
+    const base = {
+      id: `${shifting.id}-${cursor.toISOString().slice(0, 10)}`,
+      date: new Date(cursor),
+      excuseReason: null,
+      amTimeIn: null,
+      amTimeOut: null,
+      pmTimeIn: null,
+      pmTimeOut: null,
+    };
+    if (kind === "NO_DUTY") {
+      result.push({ ...base, id: `noduty-${base.id}`, status: "NO_DUTY", noDutyReason: calendar.noDutyReason(cursor) });
+    } else if (kind === "EXPECTED" && cursor.getTime() < today.getTime()) {
+      result.push({ ...base, id: `absent-${base.id}`, status: "ABSENT", noDutyReason: null });
     }
   }
 

@@ -13,6 +13,8 @@ export const configureShiftingSchema = z
     endDate: z.coerce.date(),
     requiredTeachingSessions: z.number().int().min(1).max(100),
     requiredFinalDemos: z.number().int().min(0).max(10),
+    // 0 = Sunday … 6 = Saturday. Days outside this list are never absences.
+    dutyWeekdays: z.array(z.number().int().min(0).max(6)).min(1, "Pick at least one duty day").max(7),
   })
   .refine((data) => data.endDate > data.startDate, {
     message: "End date must be after start date",

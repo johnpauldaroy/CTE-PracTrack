@@ -1,10 +1,11 @@
 "use client";
 
-import { Clock, Flag, User } from "lucide-react";
+import { Clock, Flag, Layers, User } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MyAccountTab } from "@/components/admin/settings/my-account-tab";
 import { FlaggingRulesTab } from "@/components/admin/settings/flagging-rules-tab";
 import { CheckInSettingsTab } from "@/components/admin/settings/check-in-settings-tab";
+import { SectionsTab } from "@/components/admin/settings/sections-tab";
 import type { SessionUser } from "@/lib/auth";
 
 export function SettingsPage({ user }: { user: SessionUser }) {
@@ -17,6 +18,7 @@ export function SettingsPage({ user }: { user: SessionUser }) {
           <TabsTrigger value="account"><User /> My Account</TabsTrigger>
           <TabsTrigger value="flagging"><Flag /> Flagging Rules</TabsTrigger>
           <TabsTrigger value="checkin"><Clock /> Check-in</TabsTrigger>
+          <TabsTrigger value="sections"><Layers /> Sections</TabsTrigger>
         </TabsList>
 
         <TabsContent value="account" className="mt-6">
@@ -27,6 +29,9 @@ export function SettingsPage({ user }: { user: SessionUser }) {
         </TabsContent>
         <TabsContent value="checkin" className="mt-6">
           <CheckInSettingsTab />
+        </TabsContent>
+        <TabsContent value="sections" className="mt-6">
+          <SectionsTab />
         </TabsContent>
       </Tabs>
     </div>

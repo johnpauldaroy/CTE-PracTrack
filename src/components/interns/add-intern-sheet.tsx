@@ -34,7 +34,7 @@ export function AddInternSheet({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { data: schoolsData } = useSWR<{ schools: { id: string; name: string }[] }>(
-    variant === "admin" && open ? "/api/schools" : null,
+    open ? "/api/schools" : null,
     fetcher,
   );
 
@@ -55,7 +55,7 @@ export function AddInternSheet({
       const res = await fetch(variant === "admin" ? "/api/accounts/interns" : "/api/supervisor/interns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(variant === "admin" ? { ...form, assignedSchoolId: schoolId } : form),
+        body: JSON.stringify({ ...form, ...(schoolId ? { assignedSchoolId: schoolId } : {}) }),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -102,7 +102,7 @@ export function AddInternSheet({
           {field("course", "Course", { placeholder: "BSEd-English" })}
           {field("yearLevel", "Year Level", { placeholder: "4th Year" })}
 
-          {variant === "admin" ? (
+          {variant === "admin" || (schoolsData?.schools.length ?? 0) > 1 ? (
             <div className="flex flex-col gap-2">
               <Label htmlFor="add-intern-school">School</Label>
               <Select

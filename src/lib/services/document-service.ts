@@ -23,7 +23,7 @@ export async function listInternDocuments(actor: SessionUser, internId: string, 
   const [sessions, endSubmissions] = await Promise.all([
     prisma.teachingSession.findMany({
       where: { ...scopeToRole.session(actor), internId, shiftingId },
-      select: { id: true, sessionNumber: true, subject: true, date: true, documents: { where: { supersededByDocumentId: null }, select: { id: true, type: true, originalFilename: true, uploadedAt: true }, orderBy: { uploadedAt: "desc" } } },
+      select: { id: true, sessionNumber: true, subject: true, date: true, lessonPlanStatus: true, documents: { where: { supersededByDocumentId: null }, select: { id: true, type: true, originalFilename: true, uploadedAt: true }, orderBy: { uploadedAt: "desc" } } },
       orderBy: { sessionNumber: "asc" },
     }),
     prisma.endOfTermSubmission.findMany({
@@ -36,14 +36,32 @@ export async function listInternDocuments(actor: SessionUser, internId: string, 
 
 export async function uploadSessionDocument(actor: SessionUser, sessionId: string, type: SessionDocumentType, file: File) {
   if (actor.role !== "STUDENT_INTERN" || !actor.internProfileId) throw new ForbiddenError("Only an intern can upload their session documents.");
-  const session = await prisma.teachingSession.findFirst({ where: { ...scopeToRole.session(actor), id: sessionId } });
+  const session = await prisma.teachingSession.findFirst({
+    where: { ...scopeToRole.session(actor), id: sessionId },
+    include: { cooperatingTeacher: { select: { userId: true } } },
+  });
   if (!session) throw new ForbiddenError("Session is outside your scope.");
+  if (session.status === "EVALUATED") throw new Error("This session has already been evaluated.");
+  if (session.lessonPlanStatus === "APPROVED") {
+    throw new Error("This lesson plan is already approved. Ask your cooperating teacher to return it if it needs changes.");
+  }
   const key = `${actor.internProfileId}/${session.shiftingId}/sessions/${sessionId}/${type.toLowerCase()}-${crypto.randomUUID()}-${safeFilename(file.name)}`;
   await uploadObject(key, file);
   return prisma.$transaction(async (tx) => {
     const previous = await tx.sessionDocument.findFirst({ where: { sessionId, type, supersededByDocumentId: null }, orderBy: { uploadedAt: "desc" } });
     const document = await tx.sessionDocument.create({ data: { sessionId, type, storageKey: key, originalFilename: file.name, mimeType: file.type, sizeBytes: file.size } });
     if (previous) await tx.sessionDocument.update({ where: { id: previous.id }, data: { supersededByDocumentId: document.id } });
+    // Submitting (or re-submitting) puts the lesson plan in front of the cooperating teacher.
+    await tx.teachingSession.update({ where: { id: sessionId }, data: { lessonPlanStatus: "SUBMITTED", lessonPlanReturnNote: null } });
+    await tx.notification.create({
+      data: {
+        userId: session.cooperatingTeacher.userId,
+        type: "LESSON_PLAN_SUBMITTED",
+        title: "Lesson plan submitted",
+        body: `A lesson plan for Session ${session.sessionNumber} (${session.subject}) is waiting for your review.`,
+        href: "/m/ct/sessions",
+      },
+    });
     await writeAuditLog({ actor, action: previous ? "DOCUMENT_REPLACE" : "DOCUMENT_UPLOAD", entityType: "SessionDocument", entityId: document.id, diff: { after: { sessionId, type, filename: file.name, sizeBytes: file.size } } as Prisma.InputJsonValue }, tx);
     return document;
   });

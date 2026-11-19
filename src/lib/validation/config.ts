@@ -8,10 +8,25 @@ export const flaggingRuleConfigSchema = z.object({
   behindPaceTolerance: z.number().min(0).max(100),
 });
 
-export const checkInConfigSchema = z.object({
-  timeInCutoff: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:mm format"),
-  timeOutStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:mm format"),
-});
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:mm format");
+
+export const checkInConfigSchema = z
+  .object({
+    amTimeInCutoff: hhmm,
+    amTimeOutStart: hhmm,
+    pmTimeInCutoff: hhmm,
+    pmTimeOutStart: hhmm,
+    pmWindowOpensAt: hhmm,
+  })
+  .superRefine((data, ctx) => {
+    // "HH:mm" strings compare correctly as text.
+    if (data.amTimeOutStart <= data.amTimeInCutoff) {
+      ctx.addIssue({ code: "custom", path: ["amTimeOutStart"], message: "Must be after the morning Time In cut-off" });
+    }
+    if (data.pmTimeOutStart <= data.pmTimeInCutoff) {
+      ctx.addIssue({ code: "custom", path: ["pmTimeOutStart"], message: "Must be after the afternoon Time In cut-off" });
+    }
+  });
 
 export const changePasswordSchema = z
   .object({

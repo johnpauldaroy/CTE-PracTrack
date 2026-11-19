@@ -13,7 +13,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface InternDetail {
   id: string;
-  schoolNumber: string;
+  schoolNumber: string | null;
   course: string;
   user: { name: string; email: string };
   assignedSchool: { id: string; name: string };
@@ -46,7 +46,7 @@ export function EditInternSheet({
     {
       onSuccess: ({ intern }) => {
         setName(intern.user.name);
-        setSchoolNumber(intern.schoolNumber);
+        setSchoolNumber(intern.schoolNumber ?? "");
         setCourse(intern.course);
         setEmail(intern.user.email);
         setAssignedSchoolId(intern.assignedSchool.id);

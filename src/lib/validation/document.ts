@@ -1,5 +1,5 @@
 import { z } from "zod";
-export const sessionDocumentMetadataSchema = z.object({ sessionId: z.string().min(1), type: z.enum(["LESSON_PLAN", "PROGRESS_REPORT"]) });
+export const sessionDocumentMetadataSchema = z.object({ sessionId: z.string().min(1), type: z.enum(["LESSON_PLAN"]) });
 // No dueDate from the client: it is the active shifting's end date, set server-side.
 export const endSubmissionMetadataSchema = z.object({ type: z.enum(["NARRATIVE_REPORT", "TEACHING_PORTFOLIO"]) });
 export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;

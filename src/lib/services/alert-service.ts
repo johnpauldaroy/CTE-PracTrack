@@ -4,6 +4,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { ForbiddenError } from "@/lib/session";
 import { getFlaggingRuleConfig } from "@/lib/check-in-config";
 import { materializeAttendanceRecords } from "@/lib/services/dtr-service";
+import { buildDutyCalendar, loadNonDutyRows } from "@/lib/attendance-calendar";
 import type { SessionUser } from "@/lib/auth";
 import { Prisma, type AlertSeverity, type AlertType, type NotificationType } from "@/generated/prisma/client";
 
@@ -51,6 +52,8 @@ export async function evaluateAlertsForShifting(
   });
   if (!interns.length) return result;
 
+  const nonDutyRows = await loadNonDutyRows(shifting.id);
+
   const existingAlerts = await prisma.alert.findMany({
     where: { shiftingId: shifting.id, status: "ACTIVE", internId: { in: interns.map((intern) => intern.id) } },
   });
@@ -63,7 +66,8 @@ export async function evaluateAlertsForShifting(
     result.evaluated++;
     // materializeAttendanceRecords only counts today once it has a real row, so an
     // intern who hasn't timed in yet this morning isn't flagged.
-    const rows = materializeAttendanceRecords(intern.attendanceRecords, shifting).sort((a, b) => a.date.getTime() - b.date.getTime());
+    const calendar = buildDutyCalendar(shifting, nonDutyRows, { schoolId: intern.assignedSchoolId, internId: intern.id });
+    const rows = materializeAttendanceRecords(intern.attendanceRecords, shifting, calendar).sort((a, b) => a.date.getTime() - b.date.getTime());
     const absences = rows.filter((row) => row.status === "ABSENT").length;
     let longest = 0;
     let run = 0;
@@ -122,8 +126,8 @@ async function notifyRaisedAlerts(
   const schoolIds = [...new Set(raised.map((alert) => alert.schoolId))];
   const [supervisors, admins] = await Promise.all([
     prisma.user.findMany({
-      where: { role: "SUPERVISOR", status: "ACTIVE", deletedAt: null, supervisorProfile: { schoolId: { in: schoolIds } } },
-      select: { id: true, supervisorProfile: { select: { schoolId: true } } },
+      where: { role: "SUPERVISOR", status: "ACTIVE", deletedAt: null, supervisorProfile: { schools: { some: { schoolId: { in: schoolIds } } } } },
+      select: { id: true, supervisorProfile: { select: { schools: { select: { schoolId: true } } } } },
     }),
     raised.some((alert) => alert.severity === "HIGH")
       ? prisma.user.findMany({ where: { role: "ADMIN", status: "ACTIVE", deletedAt: null }, select: { id: true } })
@@ -135,7 +139,7 @@ async function notifyRaisedAlerts(
   for (const alert of raised) {
     data.push({ userId: alert.internUserId, type, title: "Practicum alert", body: alert.detail, href: "/m/intern/attendance" });
     for (const supervisor of supervisors) {
-      if (supervisor.supervisorProfile?.schoolId !== alert.schoolId) continue;
+      if (!supervisor.supervisorProfile?.schools.some((entry) => entry.schoolId === alert.schoolId)) continue;
       data.push({ userId: supervisor.id, type, title: `${alert.internName} requires attention`, body: alert.detail, href: "/m/supervisor/alerts" });
     }
     // Admins only hear about HIGH severity (drop-eligible, consecutive absences) to keep the feed actionable.

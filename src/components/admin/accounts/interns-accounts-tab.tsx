@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EditInternSheet } from "@/components/admin/accounts/edit-intern-sheet";
 import { InternDetailSheet } from "@/components/admin/accounts/intern-detail-sheet";
 import { AddInternSheet } from "@/components/interns/add-intern-sheet";
+import { EnrollmentRequests } from "@/components/enrollment-requests";
 import { toast } from "sonner";
 import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
@@ -17,7 +18,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface InternRow {
   id: string;
-  schoolNumber: string;
+  schoolNumber: string | null;
   course: string;
   user: { name: string; email: string };
   assignedSchool: { id: string; name: string };
@@ -50,6 +51,15 @@ export function InternsAccountsTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Enrollment requests</h2>
+        <p className="text-sm text-muted-foreground">
+          Interns who registered themselves are confirmed by their school&apos;s supervisor. Schools without a supervisor
+          land here so no request gets stuck.
+        </p>
+        <EnrollmentRequests emptyText="No intern registrations waiting for confirmation." />
+      </section>
+
       <p className="text-sm text-muted-foreground">
         Add intern accounts here or from the supervisor app. Use this page to view, edit, or remove
         accounts as needed.
@@ -80,7 +90,7 @@ export function InternsAccountsTab() {
             <TableBody>
               {data?.interns.map((intern) => (
                 <TableRow key={intern.id}>
-                  <TableCell>{intern.schoolNumber}</TableCell>
+                  <TableCell>{intern.schoolNumber ?? "—"}</TableCell>
                   <TableCell className="font-medium">{intern.user.name}</TableCell>
                   <TableCell className="text-secondary">{intern.course}</TableCell>
                   <TableCell>{intern.assignedSchool.name}</TableCell>

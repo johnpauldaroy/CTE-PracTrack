@@ -21,10 +21,10 @@ export async function GET(request: NextRequest) {
         ? reports[type]
         : type === "interns"
           ? reports.interns
-              .filter((row) => (!schoolId || row.schoolId === schoolId) && (!q || row.name.toLowerCase().includes(q) || row.schoolNumber.toLowerCase().includes(q)))
+              .filter((row) => (!schoolId || row.schoolId === schoolId) && (!q || row.name.toLowerCase().includes(q) || (row.schoolNumber ?? "").toLowerCase().includes(q)))
               .map((row) => ({
                 school: row.school,
-                schoolId: row.schoolNumber,
+                schoolId: row.schoolNumber ?? "",
                 intern: row.name,
                 cooperatingTeacher: row.cooperatingTeacher ?? "",
                 present: row.present,
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
                 finalDemo: `${row.finalDemosEvaluated}/${row.requiredFinalDemos}`,
                 status: row.behind ? "Behind" : "On track",
                 averageScoreReferenceOnly: row.averageScore ? `${Number(row.averageScore).toFixed(2)}%` : "",
-                missingLessonPlans: row.missingLessonPlans,
-                missingProgressReports: row.missingProgressReports,
+                lessonPlansPending: row.missingLessonPlans,
+                overdueProgressReports: row.missingProgressReports,
                 narrativeReport: row.narrativeSubmitted ? "Submitted" : "Missing",
                 teachingPortfolio: row.portfolioSubmitted ? "Submitted" : "Missing",
                 activeAlerts: row.activeAlerts,

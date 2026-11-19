@@ -32,6 +32,20 @@ enum UserStatus {
   PENDING
   ACTIVE
   INACTIVE
+  LOCKED // reversible admin lock (e.g. after the semester ends); distinct from INACTIVE/deletedAt
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ENROLLED
+  REJECTED
+}
+
+enum LessonPlanStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  APPROVED
+  RETURNED
 }
 
 enum SchoolType {
@@ -56,6 +70,7 @@ enum AttendanceStatus {
   INCOMPLETE
   LATE
   EXCUSED
+  NO_DUTY // derived only: a no-class/no-duty day with no punch. Never typed in.
 }
 
 enum AttendancePunchSource {
@@ -111,6 +126,13 @@ enum NotificationType {
   CT_REGISTRATION_APPROVED
   CT_REGISTRATION_PENDING
   DOCUMENT_REMINDER
+  SUPERVISOR_REGISTRATION_PENDING
+  INTERN_ENROLLMENT_PENDING
+  INTERN_ENROLLMENT_APPROVED
+  INTERN_ENROLLMENT_REJECTED
+  LESSON_PLAN_SUBMITTED
+  LESSON_PLAN_APPROVED
+  LESSON_PLAN_RETURNED
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -118,16 +140,20 @@ enum NotificationType {
 // ─────────────────────────────────────────────────────────────────────────
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
-  role         Role
-  status       UserStatus @default(ACTIVE)
-  name         String
-  phone        String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  deletedAt    DateTime? // soft delete — accounts with history are deactivated, never cascaded
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String
+  role            Role
+  status          UserStatus @default(ACTIVE)
+  name            String
+  phone           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime? // soft delete — accounts with history are deactivated, never cascaded
+  emailVerifiedAt DateTime?
+  lockedAt        DateTime?
+  lockedByUserId  String?
+  lockReason      String?
 
   supervisorProfile SupervisorProfile?
   ctProfile         CooperatingTeacherProfile?
@@ -142,6 +168,7 @@ model User {
   resolvedAlerts           Alert[]                     @relation("AlertResolvedBy")
   notifications            Notification[]
   pushSubscriptions        PushSubscription[]
+  emailVerifications       EmailVerification[]
   auditLogEntries          AuditLog[]                  @relation("AuditActor")
   supervisorAssignedSchool SchoolSupervisorHistory[]   @relation("SchoolSupervisorAssignedBy")
 
@@ -150,12 +177,24 @@ model User {
 }
 
 model SupervisorProfile {
-  id         String  @id @default(cuid())
-  userId     String  @unique
-  user       User    @relation(fields: [userId], references: [id])
+  id         String @id @default(cuid())
+  userId     String @unique
+  user       User   @relation(fields: [userId], references: [id])
   department String
-  schoolId   String? @unique
-  school     School? @relation(fields: [schoolId], references: [id])
+
+  // A supervisor may cover several schools; a school has at most one supervisor.
+  schools SupervisorSchool[]
+}
+
+model SupervisorSchool {
+  id                  String            @id @default(cuid())
+  supervisorProfileId String
+  supervisorProfile   SupervisorProfile @relation(fields: [supervisorProfileId], references: [id])
+  schoolId            String            @unique
+  school              School            @relation(fields: [schoolId], references: [id])
+  assignedAt          DateTime          @default(now())
+
+  @@index([supervisorProfileId])
 }
 
 model CooperatingTeacherProfile {
@@ -178,7 +217,7 @@ model InternProfile {
   id                   String                     @id @default(cuid())
   userId               String                     @unique
   user                 User                       @relation(fields: [userId], references: [id])
-  schoolNumber         String // school-issued ID number, e.g. "2021-0045"
+  schoolNumber         String? // school-issued ID number, e.g. "2021-0045"; optional for self-registered interns
   course               String
   yearLevel            String
   assignedSchoolId     String
@@ -187,15 +226,50 @@ model InternProfile {
   cooperatingTeacher   CooperatingTeacherProfile? @relation("InternAssignedCt", fields: [cooperatingTeacherId], references: [id])
   createdByUserId      String
   createdByUser        User                       @relation("InternCreatedBy", fields: [createdByUserId], references: [id])
+  sectionId            String?
+  section              Section?                   @relation(fields: [sectionId], references: [id])
+  enrollmentStatus     EnrollmentStatus           @default(ENROLLED)
+  enrolledAt           DateTime?
+  enrolledByUserId     String?
+  rejectionReason      String?
 
   attendanceRecords    AttendanceRecord[]
   teachingSessions     TeachingSession[]
   endOfTermSubmissions EndOfTermSubmission[]
   alerts               Alert[]
+  nonDutyDays          NonDutyDay[]
+  progressReports      ProgressReportSubmission[]
 
   @@unique([assignedSchoolId, schoolNumber])
   @@index([assignedSchoolId])
   @@index([cooperatingTeacherId])
+  @@index([enrollmentStatus])
+}
+
+// Admin-managed class sections; a section implies course + year level for new interns.
+model Section {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  course    String
+  yearLevel String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  interns InternProfile[]
+}
+
+// Six-digit email verification codes, stored hashed and attempt-limited.
+model EmailVerification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -210,16 +284,22 @@ model School {
   latitude             Decimal    @db.Decimal(10, 7)
   longitude            Decimal    @db.Decimal(10, 7)
   geofenceRadiusMeters Int        @default(75)
-  timeInCutoff         String? // "HH:mm" 24h Asia/Manila; null → global CheckInConfig default
-  timeOutStart         String? // "HH:mm" 24h Asia/Manila; null → global CheckInConfig default
+  // "HH:mm" 24h Asia/Manila; null → global CheckInConfig default (field-by-field cascade).
+  // amTimeInCutoff / pmTimeOutStart keep the original column names (timeInCutoff / timeOutStart).
+  amTimeInCutoff       String?    @map("timeInCutoff")
+  amTimeOutStart       String?
+  pmTimeInCutoff       String?
+  pmTimeOutStart       String?    @map("timeOutStart")
+  pmWindowOpensAt      String?
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
   deletedAt            DateTime?
 
-  supervisorProfile SupervisorProfile?
+  supervisorLink    SupervisorSchool?
   supervisorHistory SchoolSupervisorHistory[]
   cts               CooperatingTeacherProfile[]
   interns           InternProfile[]
+  nonDutyDays       NonDutyDay[]
 
   @@index([type])
 }
@@ -273,11 +353,14 @@ model Shifting {
   status                   ShiftingStatus @default(UPCOMING)
   activatedAt              DateTime?
   completedAt              DateTime?
+  dutyWeekdays             Int[]          @default([1, 2, 3, 4, 5]) // 0=Sun … 6=Sat; weekdays interns are expected on duty
 
-  attendanceRecords    AttendanceRecord[]
-  teachingSessions     TeachingSession[]
-  endOfTermSubmissions EndOfTermSubmission[]
-  alerts               Alert[]
+  attendanceRecords     AttendanceRecord[]
+  nonDutyDays           NonDutyDay[]
+  progressReportPeriods ProgressReportPeriod[]
+  teachingSessions      TeachingSession[]
+  endOfTermSubmissions  EndOfTermSubmission[]
+  alerts                Alert[]
 
   @@unique([semesterId, name])
   @@index([status])
@@ -294,14 +377,23 @@ model AttendanceRecord {
   shiftingId      String
   shifting        Shifting               @relation(fields: [shiftingId], references: [id])
   date            DateTime               @db.Date // Asia/Manila calendar date this row represents
-  timeIn          DateTime?
-  timeOut         DateTime?
-  timeInLat       Decimal?               @db.Decimal(10, 7)
-  timeInLng       Decimal?               @db.Decimal(10, 7)
-  timeOutLat      Decimal?               @db.Decimal(10, 7)
-  timeOutLng      Decimal?               @db.Decimal(10, 7)
-  timeInSource    AttendancePunchSource?
-  timeOutSource   AttendancePunchSource?
+  // The AM punch keeps the original column names (the pre-AM/PM single punch).
+  amTimeIn        DateTime?              @map("timeIn")
+  amTimeOut       DateTime?              @map("timeOut")
+  amTimeInLat     Decimal?               @map("timeInLat") @db.Decimal(10, 7)
+  amTimeInLng     Decimal?               @map("timeInLng") @db.Decimal(10, 7)
+  amTimeOutLat    Decimal?               @map("timeOutLat") @db.Decimal(10, 7)
+  amTimeOutLng    Decimal?               @map("timeOutLng") @db.Decimal(10, 7)
+  amTimeInSource  AttendancePunchSource? @map("timeInSource")
+  amTimeOutSource AttendancePunchSource? @map("timeOutSource")
+  pmTimeIn        DateTime?
+  pmTimeOut       DateTime?
+  pmTimeInLat     Decimal?               @db.Decimal(10, 7)
+  pmTimeInLng     Decimal?               @db.Decimal(10, 7)
+  pmTimeOutLat    Decimal?               @db.Decimal(10, 7)
+  pmTimeOutLng    Decimal?               @db.Decimal(10, 7)
+  pmTimeInSource  AttendancePunchSource?
+  pmTimeOutSource AttendancePunchSource?
   status          AttendanceStatus // derived server-side, never accepted from a client payload
   excuseReason    String?
   excusedByUserId String?
@@ -315,26 +407,50 @@ model AttendanceRecord {
   @@index([internId, shiftingId])
 }
 
+// A school-calendar exception: no class or duty. Scope is one school, one intern,
+// or every school (both null, admin only). Absences on these days are never counted.
+model NonDutyDay {
+  id              String         @id @default(cuid())
+  shiftingId      String
+  shifting        Shifting       @relation(fields: [shiftingId], references: [id])
+  date            DateTime       @db.Date
+  schoolId        String?
+  school          School?        @relation(fields: [schoolId], references: [id])
+  internId        String?
+  intern          InternProfile? @relation(fields: [internId], references: [id])
+  reason          String
+  createdByUserId String
+  createdAt       DateTime       @default(now())
+
+  @@index([shiftingId, date])
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Teaching sessions & evaluation
 // ─────────────────────────────────────────────────────────────────────────
 
 model TeachingSession {
-  id                   String                    @id @default(cuid())
-  internId             String
-  intern               InternProfile             @relation(fields: [internId], references: [id])
-  shiftingId           String
-  shifting             Shifting                  @relation(fields: [shiftingId], references: [id])
-  cooperatingTeacherId String
-  cooperatingTeacher   CooperatingTeacherProfile @relation(fields: [cooperatingTeacherId], references: [id])
-  sessionNumber        Int // sequence within the intern's shifting, assigned server-side
-  date                 DateTime                  @db.Date
-  subject              String
-  gradeSection         String
-  topic                String
-  type                 SessionType               @default(REGULAR)
-  status               SessionStatus             @default(ASSIGNED)
-  createdAt            DateTime                  @default(now())
+  id                         String                    @id @default(cuid())
+  internId                   String
+  intern                     InternProfile             @relation(fields: [internId], references: [id])
+  shiftingId                 String
+  shifting                   Shifting                  @relation(fields: [shiftingId], references: [id])
+  cooperatingTeacherId       String
+  cooperatingTeacher         CooperatingTeacherProfile @relation(fields: [cooperatingTeacherId], references: [id])
+  sessionNumber              Int // sequence within the intern's shifting, assigned server-side
+  date                       DateTime                  @db.Date
+  subject                    String
+  gradeSection               String
+  topic                      String
+  type                       SessionType               @default(REGULAR)
+  status                     SessionStatus             @default(ASSIGNED)
+  createdAt                  DateTime                  @default(now())
+  notes                      String? // CT's instruction to the intern, e.g. "Submit your lesson plan by …"
+  lessonPlanDueDate          DateTime?                 @db.Date
+  lessonPlanStatus           LessonPlanStatus          @default(NOT_SUBMITTED)
+  lessonPlanApprovedAt       DateTime?
+  lessonPlanApprovedByUserId String?
+  lessonPlanReturnNote       String?
 
   evaluation Evaluation?
   documents  SessionDocument[]
@@ -436,6 +552,38 @@ model EndOfTermSubmission {
   @@index([shiftingId])
 }
 
+// Admin-configured reporting windows for the periodic progress report (per shifting).
+model ProgressReportPeriod {
+  id         String   @id @default(cuid())
+  shiftingId String
+  shifting   Shifting @relation(fields: [shiftingId], references: [id])
+  label      String
+  startDate  DateTime @db.Date
+  endDate    DateTime @db.Date
+  dueDate    DateTime @db.Date
+
+  submissions ProgressReportSubmission[]
+
+  @@index([shiftingId])
+}
+
+// One progress report per intern per period, submitted to the school (supervisor + admin view it).
+model ProgressReportSubmission {
+  id               String               @id @default(cuid())
+  internId         String
+  intern           InternProfile        @relation(fields: [internId], references: [id])
+  periodId         String
+  period           ProgressReportPeriod @relation(fields: [periodId], references: [id])
+  storageKey       String
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  uploadedAt       DateTime             @default(now())
+
+  @@unique([internId, periodId])
+  @@index([periodId])
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // At-risk detection & alerts
 // ─────────────────────────────────────────────────────────────────────────
@@ -481,10 +629,13 @@ model FlaggingRuleConfig {
 }
 
 model CheckInConfig {
-  id           String   @id @default(cuid())
-  timeInCutoff String   @default("07:30") // "HH:mm" 24h Asia/Manila
-  timeOutStart String   @default("15:00") // "HH:mm" 24h Asia/Manila
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(cuid())
+  amTimeInCutoff  String   @default("07:30") @map("timeInCutoff") // "HH:mm" 24h Asia/Manila
+  amTimeOutStart  String   @default("12:00")
+  pmTimeInCutoff  String   @default("13:00")
+  pmTimeOutStart  String   @default("15:00") @map("timeOutStart")
+  pmWindowOpensAt String   @default("12:00") // punches before this belong to AM
+  updatedAt       DateTime @updatedAt
 }
 
 // Singleton for system bookkeeping that isn't user-facing config.

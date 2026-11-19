@@ -4,6 +4,7 @@ import { toApiErrorResponse } from "@/lib/api-error";
 import { prisma } from "@/lib/prisma";
 import { ForbiddenError } from "@/lib/session";
 import { getFlaggingRuleConfig } from "@/lib/check-in-config";
+import { getDtr } from "@/lib/services/dtr-service";
 
 export async function GET() {
   try {
@@ -22,16 +23,15 @@ export async function GET() {
       return NextResponse.json({ intern: { name: user.name, schoolName: intern.assignedSchool.name }, activeShifting: null });
     }
 
-    const [regularSessions, finalDemos, absences, evaluations] = await Promise.all([
+    const [regularSessions, finalDemos, dtr, evaluations] = await Promise.all([
       prisma.teachingSession.count({
         where: { internId: intern.id, shiftingId: activeShifting.id, type: "REGULAR" },
       }),
       prisma.teachingSession.count({
         where: { internId: intern.id, shiftingId: activeShifting.id, type: "FINAL_DEMO" },
       }),
-      prisma.attendanceRecord.count({
-        where: { internId: intern.id, shiftingId: activeShifting.id, status: "ABSENT" },
-      }),
+      // Absences come from the same derivation as the DTR (absent days are not stored rows).
+      getDtr(user, intern.id, activeShifting.id),
       prisma.evaluation.findMany({
         where: { session: { internId: intern.id, shiftingId: activeShifting.id } },
         select: { overallScore: true },
@@ -63,7 +63,7 @@ export async function GET() {
         finalDemosCompleted: finalDemos,
       },
       stats: {
-        absences,
+        absences: dtr.summary.absent,
         sessionsProgress: `${regularSessions}/${activeShifting.requiredTeachingSessions}`,
         avgScore,
       },

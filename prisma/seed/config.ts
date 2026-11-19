@@ -28,10 +28,19 @@ export async function seedConfigSingletons() {
     // than the mockup's self-contradictory 07:30/07:30 (see UI_FLOW_SPEC.md
     // §7 item 2, which flags that value as a copy-paste artifact).
     await prisma.checkInConfig.create({
-      data: { timeInCutoff: "07:30", timeOutStart: "15:00" },
+      data: { amTimeInCutoff: "07:30", amTimeOutStart: "12:00", pmTimeInCutoff: "13:00", pmTimeOutStart: "15:00", pmWindowOpensAt: "12:00" },
     });
     console.log(
       "[seed] CheckInConfig created with placeholder defaults (07:30 / 15:00) — PRD §10 Q1 still open, confirm before relying on these values.",
     );
+  }
+
+  // Sections interns pick from when they self-register (admins manage them in Settings > Sections).
+  for (const section of [
+    { name: "BSEd-ENG 4A", course: "BSEd-English", yearLevel: "4th Year" },
+    { name: "BSEd-MATH 4A", course: "BSEd-Mathematics", yearLevel: "4th Year" },
+    { name: "BSEd-SCI 4A", course: "BSEd-Science", yearLevel: "4th Year" },
+  ]) {
+    await prisma.section.upsert({ where: { name: section.name }, update: {}, create: section });
   }
 }

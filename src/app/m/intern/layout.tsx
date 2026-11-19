@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getLiveSession } from "@/lib/session";
 import { MobileHeader } from "@/components/mobile/mobile-header";
 import { BottomTabBar, type TabItem } from "@/components/mobile/bottom-tab-bar";
 
@@ -12,8 +12,8 @@ const TABS = [
 ] satisfies TabItem[];
 
 export default async function InternLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "STUDENT_INTERN") {
+  const user = await getLiveSession();
+  if (!user || user.role !== "STUDENT_INTERN") {
     redirect("/m/login");
   }
 

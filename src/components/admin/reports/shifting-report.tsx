@@ -64,7 +64,7 @@ export function ShiftingReport({ data }: { data: Reports }) {
       </TabsContent>
       <TabsContent value="compliance">
         <ReportTable
-          headers={["School", "On Track", "Behind", "Sessions", "Missing LP", "Missing PR"]}
+          headers={["School", "On Track", "Behind", "Sessions", "Lesson plans pending", "Overdue progress reports"]}
           empty="No teaching sessions recorded for this shifting."
           rows={data.compliance.map((r) => [r.school, r.onTrack, r.behind, r.sessionsLogged, r.missingLessonPlans, r.missingProgressReports])}
         />

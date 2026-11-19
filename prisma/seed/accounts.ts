@@ -42,11 +42,18 @@ export async function seedAccounts(schoolIdsByName: Record<string, string>) {
       update: {},
       create: { email: s.email, passwordHash, role: "SUPERVISOR", status: "ACTIVE", name: s.name },
     });
-    await prisma.supervisorProfile.upsert({
+    const profile = await prisma.supervisorProfile.upsert({
       where: { userId: user.id },
-      update: { schoolId, department: s.department },
-      create: { userId: user.id, schoolId, department: s.department },
+      update: { department: s.department },
+      create: { userId: user.id, department: s.department },
     });
+    if (schoolId) {
+      await prisma.supervisorSchool.upsert({
+        where: { schoolId },
+        update: { supervisorProfileId: profile.id },
+        create: { supervisorProfileId: profile.id, schoolId },
+      });
+    }
   }
 
   const ctActive = await prisma.user.upsert({

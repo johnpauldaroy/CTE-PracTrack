@@ -10,14 +10,15 @@ const MOBILE_ROLE_PREFIX: Record<string, string> = {
   SUPERVISOR: "/m/supervisor",
   COOPERATING_TEACHER: "/m/ct",
 };
-const PUBLIC_MOBILE_ROUTES = ["/m/login", "/m/register"];
+// Sign-in and the three self-registration pages (cooperating teacher, supervisor, intern) + email verification.
+const isPublicMobileRoute = (pathname: string) => pathname === "/m/login" || pathname === "/m/register" || pathname.startsWith("/m/register/");
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
 
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
-  const isMobileAppRoute = pathname.startsWith("/m/") && !PUBLIC_MOBILE_ROUTES.includes(pathname);
+  const isMobileAppRoute = pathname.startsWith("/m/") && !isPublicMobileRoute(pathname);
 
   if (isAdminRoute) {
     if (!session?.user) {

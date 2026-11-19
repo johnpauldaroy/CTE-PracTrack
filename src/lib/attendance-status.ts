@@ -1,39 +1,85 @@
 import type { AttendanceStatus } from "@/generated/prisma/client";
 import { isAtOrAfterManilaCutoff, todayManilaDateOnly } from "@/lib/timezone";
 
-export interface AttendanceStatusInputs {
-  dateOnly: Date;
+export type AttendancePeriod = "AM" | "PM";
+
+export interface PeriodPunches {
   timeIn: Date | null;
   timeOut: Date | null;
+}
+
+export interface DayPunches {
+  am: PeriodPunches;
+  pm: PeriodPunches;
+}
+
+/** The punch columns of an AttendanceRecord row (or anything shaped like one). */
+export interface PunchRecordShape {
+  amTimeIn: Date | null;
+  amTimeOut: Date | null;
+  pmTimeIn: Date | null;
+  pmTimeOut: Date | null;
+}
+
+export function punchesOf(record: PunchRecordShape | null | undefined): DayPunches {
+  return {
+    am: { timeIn: record?.amTimeIn ?? null, timeOut: record?.amTimeOut ?? null },
+    pm: { timeIn: record?.pmTimeIn ?? null, timeOut: record?.pmTimeOut ?? null },
+  };
+}
+
+/** Effective cut-offs for the two time-in checks (school override -> global). */
+export interface TimeInCutoffs {
+  amTimeInCutoff: string; // "HH:mm" Asia/Manila
+  pmTimeInCutoff: string; // "HH:mm" Asia/Manila
+}
+
+export interface AttendanceStatusInputs {
+  dateOnly: Date;
+  punches: DayPunches;
   excusedAt: Date | null;
-  timeInCutoff: string; // "HH:mm" effective (school override -> global)
+  cutoffs: TimeInCutoffs;
+}
+
+/** One half-day's state, derived from its punches. */
+export type PeriodState = "NONE" | "OPEN" | "ON_TIME" | "LATE";
+
+export function derivePeriodState(
+  punches: PeriodPunches,
+  dateOnly: Date,
+  timeInCutoff: string,
+): PeriodState {
+  if (!punches.timeIn) return "NONE";
+  if (!punches.timeOut) return "OPEN";
+  return isAtOrAfterManilaCutoff(punches.timeIn, dateOnly, timeInCutoff) ? "LATE" : "ON_TIME";
 }
 
 /**
  * The single status-derivation function (CLAUDE.md: "Attendance status is
- * computed, never stored as free input"). Called both when writing a punch
- * (to snapshot the status at that moment) and whenever a record is read, so
- * a day that has gone stale — e.g. a time-in with no time-out, now that the
- * day has ended — always reads correctly without a cron job rewriting rows.
+ * computed, never stored as free input"). Called when writing a punch (to
+ * snapshot the status) and wherever a day must be re-derived.
  *
- * EXCUSED always wins: it's the one status a supervisor sets explicitly and
- * it overrides whatever the raw punch data would otherwise derive to.
+ * Day rule, built from the two half-days:
+ *  - EXCUSED always wins (the one status a supervisor sets explicitly).
+ *  - No punch in either half            -> ABSENT
+ *  - A half still open, or one half missed entirely -> INCOMPLETE
+ *    (a single missed half is not a whole-day absence, so the thresholds,
+ *    which count days, stay whole numbers)
+ *  - Both halves complete, either time-in after its cut-off -> LATE
+ *  - Otherwise                          -> PRESENT
+ *
+ * NO_DUTY is never derived here: it comes from the duty calendar for days
+ * that have no punch at all (see attendance-calendar.ts / dtr-service.ts).
  */
 export function deriveAttendanceStatus(input: AttendanceStatusInputs): AttendanceStatus {
   if (input.excusedAt) return "EXCUSED";
 
-  if (!input.timeIn) return "ABSENT";
+  const am = derivePeriodState(input.punches.am, input.dateOnly, input.cutoffs.amTimeInCutoff);
+  const pm = derivePeriodState(input.punches.pm, input.dateOnly, input.cutoffs.pmTimeInCutoff);
 
-  if (!input.timeOut) {
-    // Still today (Manila) and before end of day -> the day isn't over yet,
-    // but there is no "IN_PROGRESS" status in the schema, so a time-in with
-    // no time-out reads as INCOMPLETE at any point after it's recorded, per
-    // PRD §6.5 ("A day with a time-in and no time-out is INCOMPLETE").
-    return "INCOMPLETE";
-  }
-
-  const isLate = isAtOrAfterManilaCutoff(input.timeIn, input.dateOnly, input.timeInCutoff);
-  return isLate ? "LATE" : "PRESENT";
+  if (am === "NONE" && pm === "NONE") return "ABSENT";
+  if (am === "OPEN" || pm === "OPEN" || am === "NONE" || pm === "NONE") return "INCOMPLETE";
+  return am === "LATE" || pm === "LATE" ? "LATE" : "PRESENT";
 }
 
 /** True if `dateOnly` (a UTC-midnight Date representing a Manila calendar day) is today in Manila. */

@@ -16,7 +16,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface InternDetail {
   id: string;
-  schoolNumber: string;
+  schoolNumber: string | null;
   course: string;
   user: { name: string };
   assignedSchool: { name: string };
@@ -38,7 +38,7 @@ export default function SupervisorInternDetailPage({ params }: { params: Promise
         <div>
           <h1 className="font-heading text-xl font-bold">{data.intern.user.name}</h1>
           <p className="text-sm text-muted-foreground">
-            {data.intern.schoolNumber} · {data.intern.course} · {data.intern.assignedSchool.name}
+            {data.intern.schoolNumber ? `${data.intern.schoolNumber} · ` : ""}{data.intern.course} · {data.intern.assignedSchool.name}
           </p>
         </div>
       )}

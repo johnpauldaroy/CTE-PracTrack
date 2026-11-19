@@ -4,10 +4,12 @@ import { toApiErrorResponse } from "@/lib/api-error";
 import { createSupervisorSchema } from "@/lib/validation/account";
 import { listSupervisors, createSupervisor } from "@/lib/services/account-service";
 
-export async function GET() {
+/** GET lists active supervisors; GET ?status=pending lists self-registrations awaiting approval. */
+export async function GET(request: NextRequest) {
   try {
     const user = await requireSession();
-    const supervisors = await listSupervisors(user);
+    const pending = request.nextUrl.searchParams.get("status") === "pending";
+    const supervisors = await listSupervisors(user, { pending });
     return NextResponse.json({ supervisors });
   } catch (error) {
     return toApiErrorResponse(error);

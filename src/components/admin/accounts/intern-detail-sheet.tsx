@@ -13,7 +13,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface InternDetail {
   id: string;
-  schoolNumber: string;
+  schoolNumber: string | null;
   course: string;
   yearLevel: string;
   user: { name: string; email: string };
@@ -46,7 +46,7 @@ export function InternDetailSheet({
             <SheetHeader>
               <SheetTitle>{data.intern.user.name}</SheetTitle>
               <p className="text-sm text-muted-foreground">
-                School ID: {data.intern.schoolNumber} &nbsp;&nbsp; Course: {data.intern.course} &nbsp;&nbsp;
+                School ID: {data.intern.schoolNumber ?? "—"} &nbsp;&nbsp; Course: {data.intern.course} &nbsp;&nbsp;
                 School: {data.intern.assignedSchool.name}
               </p>
             </SheetHeader>

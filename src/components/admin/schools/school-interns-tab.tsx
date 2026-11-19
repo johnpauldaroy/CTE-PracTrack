@@ -12,7 +12,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface InternRow {
   id: string;
-  schoolNumber: string;
+  schoolNumber: string | null;
   name: string;
   course: string;
   sessionsLogged: number;
@@ -48,7 +48,7 @@ export function SchoolInternsTab({ schoolId }: { schoolId: string }) {
           <TableBody>
             {interns.map((intern) => (
               <TableRow key={intern.id}>
-                <TableCell>{intern.schoolNumber}</TableCell>
+                <TableCell>{intern.schoolNumber ?? "—"}</TableCell>
                 <TableCell className="font-medium">{intern.name}</TableCell>
                 <TableCell className="text-secondary">{intern.course}</TableCell>
                 <TableCell>{intern.sessionsLogged}/15</TableCell>

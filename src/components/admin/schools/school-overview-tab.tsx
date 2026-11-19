@@ -8,19 +8,18 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { SchoolDetailData } from "@/components/admin/schools/school-detail";
 import { LocationMap } from "@/components/maps/location-map";
 import { EditSchoolSheet } from "@/components/admin/schools/edit-school-sheet";
 import { DeleteSchoolDialog } from "@/components/admin/schools/delete-school-dialog";
+import { CHECK_IN_FIELD_KEYS, CheckInFields, type CheckInFieldKey, type CheckInValues } from "@/components/admin/check-in-fields";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface SupervisorOption {
   id: string;
   name: string;
-  supervisorProfile: { department: string; schoolId: string | null } | null;
+  supervisorProfile: { department: string; schools: { schoolId: string }[] } | null;
 }
 
 export function SchoolOverviewTab({
@@ -68,16 +67,12 @@ export function SchoolOverviewTab({
     }
   }
 
-  const { data: globalCheckIn } = useSWR<{ config: { timeInCutoff: string; timeOutStart: string } }>(
-    "/api/config/check-in",
-    fetcher,
-  );
-  const effectiveTimeIn = school.timeInCutoff ?? globalCheckIn?.config.timeInCutoff ?? "…";
-  const effectiveTimeOut = school.timeOutStart ?? globalCheckIn?.config.timeOutStart ?? "…";
+  const { data: globalCheckIn } = useSWR<{ config: CheckInValues }>("/api/config/check-in", fetcher);
+  const overrides = (): Record<CheckInFieldKey, string> =>
+    Object.fromEntries(CHECK_IN_FIELD_KEYS.map((key) => [key, school[key] ?? ""])) as Record<CheckInFieldKey, string>;
 
   const [isEditingCheckIn, setIsEditingCheckIn] = useState(false);
-  const [overrideTimeIn, setOverrideTimeIn] = useState(school.timeInCutoff ?? "");
-  const [overrideTimeOut, setOverrideTimeOut] = useState(school.timeOutStart ?? "");
+  const [overrideValues, setOverrideValues] = useState<Record<CheckInFieldKey, string>>(overrides);
   const [isSavingCheckIn, setIsSavingCheckIn] = useState(false);
 
   async function handleSaveCheckInOverride(e: React.FormEvent) {
@@ -87,10 +82,9 @@ export function SchoolOverviewTab({
       const res = await fetch(`/api/schools/${school.id}/check-in-override`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          timeInCutoff: overrideTimeIn || null,
-          timeOutStart: overrideTimeOut || null,
-        }),
+        body: JSON.stringify(
+          Object.fromEntries(CHECK_IN_FIELD_KEYS.map((key) => [key, overrideValues[key] || null])),
+        ),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -138,9 +132,10 @@ export function SchoolOverviewTab({
                 {supervisorsData?.supervisors.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.name}
-                    {s.supervisorProfile?.schoolId && s.supervisorProfile.schoolId !== school.id
-                      ? " (currently assigned elsewhere)"
-                      : ""}
+                    {(() => {
+                      const others = s.supervisorProfile?.schools.filter((entry) => entry.schoolId !== school.id).length ?? 0;
+                      return others ? ` (also covers ${others} other school${others > 1 ? "s" : ""})` : "";
+                    })()}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -185,42 +180,34 @@ export function SchoolOverviewTab({
           </div>
 
           {!isEditingCheckIn ? (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Time In cut-off:{" "}
-                <span className={school.timeInCutoff ? "text-foreground font-medium" : ""}>
-                  {effectiveTimeIn}
-                </span>
-                {!school.timeInCutoff && " (global default)"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Time Out start:{" "}
-                <span className={school.timeOutStart ? "text-foreground font-medium" : ""}>
-                  {effectiveTimeOut}
-                </span>
-                {!school.timeOutStart && " (global default)"}
-              </p>
-            </>
+            <div className="grid gap-x-6 gap-y-1 text-sm text-muted-foreground sm:grid-cols-2">
+              {(
+                [
+                  ["amTimeInCutoff", "Morning Time In cut-off"],
+                  ["amTimeOutStart", "Morning Time Out start"],
+                  ["pmTimeInCutoff", "Afternoon Time In cut-off"],
+                  ["pmTimeOutStart", "Afternoon Time Out start"],
+                  ["pmWindowOpensAt", "Afternoon begins at"],
+                ] as [CheckInFieldKey, string][]
+              ).map(([key, label]) => (
+                <p key={key}>
+                  {label}:{" "}
+                  <span className={school[key] ? "font-medium text-foreground" : ""}>
+                    {school[key] ?? globalCheckIn?.config[key] ?? "…"}
+                  </span>
+                  {!school[key] && " (global default)"}
+                </p>
+              ))}
+            </div>
           ) : (
-            <form onSubmit={handleSaveCheckInOverride} className="flex flex-col gap-3">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="override-in">Time In cut-off (leave blank to use global default)</Label>
-                <Input
-                  id="override-in"
-                  type="time"
-                  value={overrideTimeIn}
-                  onChange={(e) => setOverrideTimeIn(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="override-out">Time Out start (leave blank to use global default)</Label>
-                <Input
-                  id="override-out"
-                  type="time"
-                  value={overrideTimeOut}
-                  onChange={(e) => setOverrideTimeOut(e.target.value)}
-                />
-              </div>
+            <form onSubmit={handleSaveCheckInOverride} className="flex flex-col gap-4">
+              <CheckInFields
+                idPrefix="override"
+                optional
+                values={overrideValues}
+                placeholders={globalCheckIn?.config}
+                onChange={(key, value) => setOverrideValues((current) => ({ ...current, [key]: value }))}
+              />
               <div className="flex gap-2">
                 <Button type="submit" size="sm" disabled={isSavingCheckIn}>
                   {isSavingCheckIn ? "Saving…" : "Save"}

@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ShiftingTabs } from "@/components/shifting-tabs";
 import { useShiftingSelection } from "@/components/interns/use-shifting-selection";
 import { formatManila } from "@/lib/timezone";
+import { LessonPlanBadge, type LessonPlanStatus } from "@/components/lesson-plan-badge";
+import { ProgressReportStateBadge, type ProgressReportState } from "@/components/progress-report-state";
 
 const fetcher = (url: string) =>
   fetch(url).then(async (res) => {
@@ -17,14 +19,26 @@ const fetcher = (url: string) =>
 
 interface FileRow { id: string; type: string; originalFilename: string | null; uploadedAt: string | null }
 interface DocumentsResponse {
-  sessions: { id: string; sessionNumber: number; subject: string; date: string; documents: FileRow[] }[];
+  sessions: { id: string; sessionNumber: number; subject: string; date: string; lessonPlanStatus: LessonPlanStatus; documents: FileRow[] }[];
   endSubmissions: FileRow[];
 }
 
-const SESSION_TYPES = [
-  ["LESSON_PLAN", "Lesson Plan"],
-  ["PROGRESS_REPORT", "Progress Report"],
-] as const;
+interface ProgressPeriod {
+  id: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  dueDate: string;
+  state: ProgressReportState;
+  submission: { id: string; originalFilename: string; uploadedAt: string } | null;
+}
+
+async function openProgressReport(id: string) {
+  const res = await fetch(`/api/progress-reports/${id}/url`);
+  const data = await res.json();
+  if (res.ok) window.open(data.url, "_blank", "noopener,noreferrer");
+  else toast.error(data.error ?? "Could not open the file.");
+}
 const END_TYPES = [
   ["NARRATIVE_REPORT", "Narrative Report"],
   ["TEACHING_PORTFOLIO", "Teaching Portfolio"],
@@ -60,6 +74,10 @@ function FileLine({ label, file, kind }: { label: string; file: FileRow | undefi
 /** Per-session lesson plans / progress reports plus end-of-term submissions, each viewable via a signed URL. */
 export function InternDocumentsTab({ internId }: { internId: string }) {
   const { shiftings, shiftingId, setShiftingId, isLoading: shiftingsLoading } = useShiftingSelection();
+  const { data: progressData } = useSWR<{ periods: ProgressPeriod[] }>(
+    shiftingId ? `/api/interns/${internId}/progress-reports?shiftingId=${shiftingId}` : null,
+    fetcher,
+  );
   const { data, error, isLoading } = useSWR<DocumentsResponse>(
     shiftingId ? `/api/interns/${internId}/documents?shiftingId=${shiftingId}` : null,
     fetcher,
@@ -74,6 +92,32 @@ export function InternDocumentsTab({ internId }: { internId: string }) {
         <p className="text-sm text-destructive">{error.message}</p>
       ) : data ? (
         <>
+          <section className="rounded-lg border p-3">
+            <h3 className="text-sm font-semibold">Progress Reports</h3>
+            {!progressData?.periods.length ? (
+              <p className="py-1.5 text-sm text-muted-foreground">No reporting periods set for this shifting.</p>
+            ) : (
+              progressData.periods.map((period) => (
+                <div key={period.id} className="flex items-center justify-between gap-2 py-1.5 text-sm">
+                  <span className="flex items-center gap-2">
+                    {period.label} <ProgressReportStateBadge state={period.state} />
+                  </span>
+                  {period.submission ? (
+                    <button
+                      type="button"
+                      onClick={() => openProgressReport(period.submission!.id)}
+                      className="max-w-48 truncate text-xs text-primary underline"
+                      title={`Uploaded ${formatManila(new Date(period.submission.uploadedAt), "MMM d, yyyy h:mm a")}`}
+                    >
+                      {period.submission.originalFilename}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Due {formatManila(new Date(period.dueDate), "MMM d")}</span>
+                  )}
+                </div>
+              ))
+            )}
+          </section>
           <section className="rounded-lg border p-3">
             <h3 className="text-sm font-semibold">End-of-Term Submissions</h3>
             {END_TYPES.map(([type, label]) => (
@@ -90,9 +134,17 @@ export function InternDocumentsTab({ internId }: { internId: string }) {
                 <h3 className="text-sm font-semibold">
                   Session {session.sessionNumber}: {session.subject}
                 </h3>
-                {SESSION_TYPES.map(([type, label]) => (
-                  <FileLine key={type} label={label} kind="session" file={session.documents.find((d) => d.type === type)} />
-                ))}
+                <div className="py-1.5">
+                  <LessonPlanBadge status={session.lessonPlanStatus} />
+                </div>
+                <FileLine label="Lesson Plan" kind="session" file={session.documents.find((d) => d.type === "LESSON_PLAN")} />
+                {session.documents.some((d) => d.type === "PROGRESS_REPORT") && (
+                  <FileLine
+                    label="Progress Report (older, per-session)"
+                    kind="session"
+                    file={session.documents.find((d) => d.type === "PROGRESS_REPORT")}
+                  />
+                )}
               </section>
             ))
           )}

@@ -27,7 +27,7 @@ export function PerStudentReport({ rows, shiftingId }: { rows: InternRow[]; shif
   const filtered = rows.filter(
     (row) =>
       (!schoolId || row.schoolId === schoolId) &&
-      (!q || row.name.toLowerCase().includes(q) || row.schoolNumber.toLowerCase().includes(q)),
+      (!q || row.name.toLowerCase().includes(q) || (row.schoolNumber ?? "").toLowerCase().includes(q)),
   );
 
   const params = new URLSearchParams({ type: "interns" });
@@ -79,7 +79,7 @@ export function PerStudentReport({ rows, shiftingId }: { rows: InternRow[]; shif
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
-              {["Intern", "School", "Present", "Late", "Absences", "Excused", "Rate", "Sessions", "Final Demo", "Status", "Avg. Score*", "Missing LP / PR", "Narrative", "Portfolio", "Alerts"].map((h) => (
+              {["Intern", "School", "Present", "Late", "Absences", "Excused", "Rate", "Sessions", "Final Demo", "Status", "Avg. Score*", "Lesson plans pending / Overdue progress reports", "Narrative", "Portfolio", "Alerts"].map((h) => (
                 <th key={h} className="p-3 text-left whitespace-nowrap">
                   {h}
                 </th>

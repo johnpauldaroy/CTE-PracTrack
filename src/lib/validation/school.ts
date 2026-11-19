@@ -13,17 +13,20 @@ export const createSchoolSchema = z.object({
 
 export const updateSchoolSchema = createSchoolSchema.partial();
 
+// "HH:mm" 24h, or null to clear that override and fall back to the global default.
+const optionalHhmm = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:mm format")
+  .nullable();
+
 export const updateCheckInOverrideSchema = z.object({
-  // "HH:mm" 24h, or null to clear the override and fall back to the global default.
-  timeInCutoff: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:mm format")
-    .nullable(),
-  timeOutStart: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:mm format")
-    .nullable(),
+  amTimeInCutoff: optionalHhmm,
+  amTimeOutStart: optionalHhmm,
+  pmTimeInCutoff: optionalHhmm,
+  pmTimeOutStart: optionalHhmm,
+  pmWindowOpensAt: optionalHhmm,
 });
+export type CheckInOverrideInput = z.infer<typeof updateCheckInOverrideSchema>;
 
 export const assignSupervisorSchema = z.object({
   supervisorUserId: z.string().min(1, "Select a supervisor"),
