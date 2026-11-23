@@ -41,7 +41,7 @@ export function CtDetailSheet({ ctId, onOpenChange }: { ctId: string | null; onO
               </div>
 
               <div>
-                <h3 className="mb-2 font-semibold">Assigned Interns ({data.ct.assignedInterns.length})</h3>
+                <h3 className="mb-2 font-semibold">Paired Intern</h3>
                 <div className="flex flex-col gap-2">
                   {data.ct.assignedInterns.map((intern) => (
                     <div key={intern.id} className="rounded-lg border p-3">
@@ -53,7 +53,7 @@ export function CtDetailSheet({ ctId, onOpenChange }: { ctId: string | null; onO
                     </div>
                   ))}
                   {data.ct.assignedInterns.length === 0 && (
-                    <p className="text-sm text-muted-foreground">No interns assigned yet.</p>
+                    <p className="text-sm text-muted-foreground">Not paired yet. The school&apos;s supervisor pairs a teacher with an intern.</p>
                   )}
                 </div>
               </div>

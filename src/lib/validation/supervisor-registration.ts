@@ -8,7 +8,6 @@ export const supervisorRegistrationSchema = z
       .string()
       .trim()
       .regex(/^09\d{9}$/, "Enter a valid PH mobile number (e.g. 09171234567)"),
-    department: z.string().trim().min(1, "Department is required").max(120),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(1, "Re-enter your password"),
   })

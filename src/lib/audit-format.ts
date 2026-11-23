@@ -47,7 +47,7 @@ export const ACTION_LABELS: Record<string, string> = {
   INTERN_ACCOUNT_CREATE: "Created intern account",
   INTERN_ACCOUNT_DELETE: "Deleted intern account",
   INTERN_ACCOUNT_UPDATE: "Edited intern account",
-  INTERN_CT_ASSIGN: "Assigned cooperating teacher",
+  INTERN_CT_ASSIGN: "Paired / unpaired cooperating teacher",
   INTERN_EMAIL_VERIFY: "Verified intern email",
   INTERN_ENROLLMENT_APPROVE: "Confirmed intern enrollment",
   INTERN_ENROLLMENT_REJECT: "Declined intern enrollment",
@@ -328,7 +328,7 @@ export function summarizeAudit(log: AuditLogLike, names: NameLookup = {}): strin
       return `${actor} deleted the intern account of ${entity}.`;
     case "INTERN_CT_ASSIGN":
       return after.cooperatingTeacherId
-        ? `${actor} assigned ${value("cooperatingTeacherId")} as cooperating teacher of ${entity}.`
+        ? `${actor} paired ${after.cooperatingTeacherName ? String(after.cooperatingTeacherName) : value("cooperatingTeacherId")} with ${entity} as cooperating teacher.`
         : `${actor} removed the cooperating teacher of ${entity}.`;
     case "PASSWORD_CHANGE":
       return `${actor} changed their password.`;

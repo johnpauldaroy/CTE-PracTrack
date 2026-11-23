@@ -7,6 +7,7 @@ import {
   BarChart3,
   BookOpen,
   Calendar,
+  ClipboardCheck,
   Ellipsis,
   FileText,
   Home,
@@ -15,12 +16,13 @@ import {
   ScrollText,
   Settings,
   User,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const TAB_ICONS = { AlertTriangle, BarChart3, BookOpen, Calendar, FileText, Home, LayoutDashboard, School, ScrollText, Settings, User, Users };
+const TAB_ICONS = { AlertTriangle, BarChart3, BookOpen, Calendar, ClipboardCheck, FileText, Home, LayoutDashboard, School, ScrollText, Settings, User, UserCheck, Users };
 export type TabIconName = keyof typeof TAB_ICONS;
 
 export interface TabItem {

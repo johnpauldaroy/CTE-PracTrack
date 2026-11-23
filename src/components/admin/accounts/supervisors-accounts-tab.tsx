@@ -16,7 +16,6 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface SupervisorRow {
   id: string;
-  department: string;
   user: { name: string; email: string; phone: string | null; status: string; createdAt: string };
   schools: { school: { id: string; name: string } }[];
 }
@@ -85,7 +84,6 @@ export function SupervisorsAccountsTab() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Department</TableHead>
                 <TableHead>Registered</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -95,7 +93,6 @@ export function SupervisorsAccountsTab() {
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.user.name}</TableCell>
                   <TableCell>{s.user.email}</TableCell>
-                  <TableCell>{s.department}</TableCell>
                   <TableCell>{formatManila(new Date(s.user.createdAt), "MMM d, yyyy")}</TableCell>
                   <TableCell className="flex justify-end gap-2 text-right">
                     <Button size="sm" onClick={() => setApproving({ id: s.id, schoolIds: [] })}>
@@ -157,7 +154,6 @@ export function SupervisorsAccountsTab() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Department</TableHead>
                   <TableHead>Schools</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -170,7 +166,6 @@ export function SupervisorsAccountsTab() {
                       {s.user.status === "LOCKED" && <span className="ml-2 text-xs font-normal text-destructive">Locked</span>}
                     </TableCell>
                     <TableCell>{s.user.email}</TableCell>
-                    <TableCell>{s.department}</TableCell>
                     <TableCell>
                       {s.schools.length ? (
                         s.schools.map((entry) => entry.school.name).join(", ")

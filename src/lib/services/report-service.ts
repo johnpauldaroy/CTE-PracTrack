@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { groupAlertsByIntern } from "@/lib/alert-groups";
 import { ForbiddenError } from "@/lib/session";
 import { materializeAttendanceRecords } from "@/lib/services/dtr-service";
 import { buildDutyCalendar, loadNonDutyRows } from "@/lib/attendance-calendar";
@@ -183,23 +184,21 @@ export async function getDashboard(actor: SessionUser) {
   await ensureAlertsFresh();
   const reports = await getReports(actor);
   const activeAlertWhere = { status: "ACTIVE" as const, shiftingId: reports.shifting?.id ?? "__none__" };
-  const [activeAlerts, activeAlertCount] = await Promise.all([
-    prisma.alert.findMany({
-      where: activeAlertWhere,
-      include: { intern: { include: { user: true, assignedSchool: true } } },
-      orderBy: [{ severity: "desc" }, { raisedAt: "desc" }],
-      take: 10,
-    }),
-    prisma.alert.count({ where: activeAlertWhere }),
-  ]);
+  // Every active alert is loaded so that one intern's several flags merge into one card before the list is trimmed.
+  const activeAlerts = await prisma.alert.findMany({
+    where: activeAlertWhere,
+    include: { intern: { include: { user: true, assignedSchool: true } } },
+  });
+  const alertGroups = groupAlertsByIntern(activeAlerts);
   return {
     ...reports,
-    activeAlerts,
+    alertGroups: alertGroups.slice(0, 12),
     totals: {
       schools: reports.attendance.length,
       interns: reports.attendance.reduce((n, row) => n + row.interns, 0),
       absences: reports.attendance.reduce((n, row) => n + row.absences, 0),
-      activeAlerts: activeAlertCount,
+      activeAlerts: activeAlerts.length,
+      flaggedInterns: alertGroups.length,
     },
   };
 }

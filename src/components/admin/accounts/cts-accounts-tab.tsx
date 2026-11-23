@@ -24,7 +24,7 @@ interface ActiveCt {
   id: string;
   user: { name: string; email: string };
   school: { name: string };
-  assignedInterns: { user: { name: string } }[];
+  assignedIntern: { user: { name: string } } | null;
 }
 
 export function CtsAccountsTab() {
@@ -133,7 +133,7 @@ export function CtsAccountsTab() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>School</TableHead>
-                  <TableHead>Interns Assigned</TableHead>
+                  <TableHead>Paired Intern</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -144,7 +144,7 @@ export function CtsAccountsTab() {
                     <TableCell>{ct.user.email}</TableCell>
                     <TableCell>{ct.school.name}</TableCell>
                     <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
-                      {ct.assignedInterns.map((i) => i.user.name).join(", ") || "—"}
+                      {ct.assignedIntern?.user.name ?? "Not paired"}
                     </TableCell>
                     <TableCell className="flex justify-end gap-2 text-right">
                       <Button variant="outline" size="sm" onClick={() => setViewingId(ct.id)}>

@@ -7,6 +7,7 @@ import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatManila } from "@/lib/timezone";
+import { sectionLabel } from "@/lib/section-label";
 import { ShowMoreButton, useShowMore } from "@/components/pagination";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -15,6 +16,7 @@ export interface EnrollmentRequest {
   id: string;
   user: { name: string; email: string; phone: string | null; createdAt: string };
   assignedSchool: { id: string; name: string };
+  schoolNumber: string | null;
   section: { name: string } | null;
   course: string;
   yearLevel: string;
@@ -66,7 +68,8 @@ export function EnrollmentRequests({ showSchool = true, emptyText }: { showSchoo
         <li key={request.id} className="rounded-xl border bg-card p-4">
           <p className="font-semibold">{request.user.name}</p>
           <p className="text-sm text-muted-foreground">
-            {request.section?.name ?? request.course} · {request.course}, {request.yearLevel}
+            {request.section ? sectionLabel({ course: request.course, yearLevel: request.yearLevel, name: request.section.name }) : `${request.course}, ${request.yearLevel}`}
+            {request.schoolNumber ? ` · ID ${request.schoolNumber}` : ""}
             {showSchool && ` · ${request.assignedSchool.name}`}
           </p>
           <p className="text-sm text-muted-foreground">

@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { assertEmailDeliverable } from "@/lib/email-check";
 import { notifyAdmins } from "@/lib/services/notification-service";
 import type { CtRegistrationInput } from "@/lib/validation/ct-registration";
 
@@ -11,6 +12,7 @@ import type { CtRegistrationInput } from "@/lib/validation/ct-registration";
  * their own password here; sign-in stays blocked until approval.
  */
 export async function registerCooperatingTeacher(input: CtRegistrationInput) {
+  await assertEmailDeliverable(input.email);
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) {
     throw new Error("An account with this email already exists.");

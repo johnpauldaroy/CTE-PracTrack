@@ -37,10 +37,14 @@ export async function seedConfigSingletons() {
 
   // Sections interns pick from when they self-register (admins manage them in Settings > Sections).
   for (const section of [
-    { name: "BSEd-ENG 4A", course: "BSEd-English", yearLevel: "4th Year" },
-    { name: "BSEd-MATH 4A", course: "BSEd-Mathematics", yearLevel: "4th Year" },
-    { name: "BSEd-SCI 4A", course: "BSEd-Science", yearLevel: "4th Year" },
+    { name: "A", course: "BSED-ENGLISH", yearLevel: "4th Year" },
+    { name: "A", course: "BSED-MATH", yearLevel: "4th Year" },
+    { name: "A", course: "BSED-SCIENCE", yearLevel: "4th Year" },
   ]) {
-    await prisma.section.upsert({ where: { name: section.name }, update: {}, create: section });
+    await prisma.section.upsert({
+      where: { course_yearLevel_name: { course: section.course, yearLevel: section.yearLevel, name: section.name } },
+      update: {},
+      create: section,
+    });
   }
 }

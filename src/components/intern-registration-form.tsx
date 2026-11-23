@@ -8,6 +8,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { sectionLabel } from "@/lib/section-label";
 
 interface SectionOption {
   id: string;
@@ -26,6 +27,7 @@ export function InternRegistrationForm() {
   const [sections, setSections] = useState<SectionOption[]>([]);
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [name, setName] = useState("");
+  const [schoolNumber, setSchoolNumber] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -53,7 +55,7 @@ export function InternRegistrationForm() {
       const res = await fetch("/api/intern-registration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, sectionId, email, phone, schoolId, password, confirmPassword, website }),
+        body: JSON.stringify({ name, schoolNumber, sectionId, email, phone, schoolId, password, confirmPassword, website }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -81,19 +83,25 @@ export function InternRegistrationForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="in-section">Section</Label>
+        <Label htmlFor="in-school-number">School ID No.</Label>
+        <Input id="in-school-number" required placeholder="2021-0045" value={schoolNumber} onChange={(e) => setSchoolNumber(e.target.value)} />
+        {error("schoolNumber")}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="in-section">Course, Year &amp; Section</Label>
         <Select
           value={sectionId}
           onValueChange={(value) => setSectionId(value ?? "")}
-          items={Object.fromEntries(sections.map((s) => [s.id, s.name]))}
+          items={Object.fromEntries(sections.map((s) => [s.id, sectionLabel(s)]))}
         >
           <SelectTrigger id="in-section" className="w-full">
-            <SelectValue placeholder="Select your section..." />
+            <SelectValue placeholder="Select your course, year & section..." />
           </SelectTrigger>
           <SelectContent>
             {sections.map((section) => (
               <SelectItem key={section.id} value={section.id}>
-                {section.name} · {section.course}, {section.yearLevel}
+                {sectionLabel(section)}
               </SelectItem>
             ))}
           </SelectContent>

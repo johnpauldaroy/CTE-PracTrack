@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { assertEmailDeliverable } from "@/lib/email-check";
 import { writeAuditLog } from "@/lib/audit";
 import { FieldValidationError } from "@/lib/session";
 import { notifyAdmins } from "@/lib/services/notification-service";
@@ -12,6 +13,7 @@ import type { SupervisorRegistrationInput } from "@/lib/validation/supervisor-re
  * Sign-in stays blocked until then ("awaiting approval").
  */
 export async function registerSupervisor(input: SupervisorRegistrationInput) {
+  await assertEmailDeliverable(input.email);
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) throw new FieldValidationError({ email: ["An account with this email already exists."] });
 
@@ -26,7 +28,7 @@ export async function registerSupervisor(input: SupervisorRegistrationInput) {
         status: "PENDING",
         name: input.name,
         phone: input.phone,
-        supervisorProfile: { create: { department: input.department } },
+        supervisorProfile: { create: {} },
       },
     });
 
@@ -37,7 +39,7 @@ export async function registerSupervisor(input: SupervisorRegistrationInput) {
         action: "SUPERVISOR_REGISTER",
         entityType: "User",
         entityId: user.id,
-        diff: { after: { name: input.name, email: input.email, department: input.department } },
+        diff: { after: { name: input.name, email: input.email } },
       },
       tx,
     );
@@ -46,7 +48,7 @@ export async function registerSupervisor(input: SupervisorRegistrationInput) {
       {
         type: "SUPERVISOR_REGISTRATION_PENDING",
         title: "New supervisor registration",
-        body: `${user.name} (${input.department}) is waiting for approval and a school assignment.`,
+        body: `${user.name} is waiting for approval and a school assignment.`,
         href: "/accounts?tab=supervisors",
       },
       tx,

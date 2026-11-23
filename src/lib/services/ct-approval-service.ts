@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
+import { softDeleteUser } from "@/lib/services/account-deactivation";
 import { ForbiddenError } from "@/lib/session";
 import type { SessionUser } from "@/lib/auth";
 import type { Prisma } from "@/generated/prisma/client";
@@ -25,7 +26,7 @@ export async function listActiveCts(user: SessionUser) {
     include: {
       user: true,
       school: true,
-      assignedInterns: { include: { user: true } },
+      assignedIntern: { include: { user: true } },
     },
     orderBy: { user: { name: "asc" } },
   });
@@ -41,14 +42,14 @@ export async function getCtDetail(user: SessionUser, ctProfileId: string) {
       include: {
         user: true,
         school: true,
-        assignedInterns: { include: { user: true } },
+        assignedIntern: { include: { user: true } },
       },
     }),
     prisma.shifting.findFirst({ where: { status: "ACTIVE" } }),
   ]);
 
   const internsWithProgress = await Promise.all(
-    ctProfile.assignedInterns.map(async (intern) => {
+    (ctProfile.assignedIntern ? [ctProfile.assignedIntern] : []).map(async (intern) => {
       if (!activeShifting) {
         return { id: intern.id, name: intern.user.name, course: intern.course, sessionsLogged: 0, absences: 0 };
       }
@@ -139,10 +140,9 @@ export async function deleteCt(actor: SessionUser, ctProfileId: string) {
       include: { user: true },
     });
 
-    const deactivated = await tx.user.update({
-      where: { id: profile.userId },
-      data: { status: "INACTIVE", deletedAt: new Date() },
-    });
+    // The paired intern goes back to "unpaired" so their supervisor can pair them with another teacher.
+    await tx.internProfile.updateMany({ where: { cooperatingTeacherId: ctProfileId }, data: { cooperatingTeacherId: null } });
+    const deactivated = await softDeleteUser(tx, profile.userId);
 
     await writeAuditLog(
       {

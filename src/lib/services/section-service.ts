@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { FieldValidationError, ForbiddenError } from "@/lib/session";
+import { sectionLabel } from "@/lib/section-label";
 import type { SessionUser } from "@/lib/auth";
 import type { SectionInput } from "@/lib/validation/intern-registration";
 import type { Prisma } from "@/generated/prisma/client";
@@ -14,7 +15,7 @@ export async function listActiveSections() {
   return prisma.section.findMany({
     where: { isActive: true },
     select: { id: true, name: true, course: true, yearLevel: true },
-    orderBy: { name: "asc" },
+    orderBy: [{ course: "asc" }, { yearLevel: "asc" }, { name: "asc" }],
   });
 }
 
@@ -22,14 +23,15 @@ export async function listSections(actor: SessionUser) {
   requireAdmin(actor);
   return prisma.section.findMany({
     include: { _count: { select: { interns: true } } },
-    orderBy: { name: "asc" },
+    orderBy: [{ course: "asc" }, { yearLevel: "asc" }, { name: "asc" }],
   });
 }
 
 export async function createSection(actor: SessionUser, input: SectionInput) {
   requireAdmin(actor);
-  if (await prisma.section.findUnique({ where: { name: input.name } })) {
-    throw new FieldValidationError({ name: ["A section with this name already exists."] });
+  // The same letter may exist in other courses and year levels; only the full combination must be unique.
+  if (await prisma.section.findFirst({ where: { course: input.course, yearLevel: input.yearLevel, name: input.name } })) {
+    throw new FieldValidationError({ name: [`${sectionLabel(input)} already exists.`] });
   }
   return prisma.$transaction(async (tx) => {
     const section = await tx.section.create({
@@ -46,8 +48,10 @@ export async function createSection(actor: SessionUser, input: SectionInput) {
 /** Rename, change course/year, or deactivate. Sections are never deleted: interns keep pointing at them. */
 export async function updateSection(actor: SessionUser, id: string, input: SectionInput) {
   requireAdmin(actor);
-  const clash = await prisma.section.findFirst({ where: { name: input.name, NOT: { id } } });
-  if (clash) throw new FieldValidationError({ name: ["A section with this name already exists."] });
+  const clash = await prisma.section.findFirst({
+    where: { course: input.course, yearLevel: input.yearLevel, name: input.name, NOT: { id } },
+  });
+  if (clash) throw new FieldValidationError({ name: [`${sectionLabel(input)} already exists.`] });
   return prisma.$transaction(async (tx) => {
     const before = await tx.section.findUniqueOrThrow({ where: { id } });
     const section = await tx.section.update({

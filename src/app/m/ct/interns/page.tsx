@@ -19,7 +19,7 @@ export default function CtInternsPage() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <h1 className="font-heading text-xl font-bold">My Interns</h1>
+      <h1 className="font-heading text-xl font-bold">My Intern</h1>
       {isLoading ? (
         <Skeleton className="h-32" />
       ) : (
@@ -34,7 +34,7 @@ export default function CtInternsPage() {
               <p className="text-xs text-muted-foreground">{intern.user.email}</p>
             </article>
           ))}
-          {!more.total && <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">No interns assigned to you yet.</p>}
+          {!more.total && <p className="rounded-xl border p-6 text-center text-sm text-muted-foreground">You are not paired with an intern yet. Your school&apos;s supervisor pairs each cooperating teacher with one intern; you will be notified.</p>}
           <ShowMoreButton hasMore={more.hasMore} remaining={more.remaining} onClick={more.showMore} />
         </>
       )}

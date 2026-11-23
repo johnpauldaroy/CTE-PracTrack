@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { YEAR_LEVELS, normalizeCourse } from "@/lib/section-label";
 
 export const internRegistrationSchema = z
   .object({
     name: z.string().trim().min(1, "Full name is required").max(150),
-    sectionId: z.string().min(1, "Select your section"),
+    schoolNumber: z.string().trim().min(1, "School ID No. is required").max(30, "School ID No. is too long"),
+    sectionId: z.string().min(1, "Select your course, year & section"),
     email: z.string().trim().toLowerCase().email("Enter a valid email"),
     phone: z
       .string()
@@ -32,9 +34,16 @@ export const rejectEnrollmentSchema = z.object({
 });
 
 export const sectionSchema = z.object({
-  name: z.string().trim().min(1, "Section name is required").max(60),
-  course: z.string().trim().min(1, "Course is required").max(80),
-  yearLevel: z.string().trim().min(1, "Year level is required").max(30),
+  // The section letter only ("A"); the full label ("BSED-MATH 4A") is built from course + year + section.
+  name: z
+    .string()
+    .trim()
+    .min(1, "Section is required")
+    .max(10, "Section is too long (e.g. A, B, C1)")
+    .regex(/^[A-Za-z0-9-]+$/, "Use letters or numbers only (e.g. A)")
+    .transform((value) => value.toUpperCase()),
+  course: z.string().trim().min(1, "Course is required").max(80).transform(normalizeCourse),
+  yearLevel: z.enum(YEAR_LEVELS, { message: "Select a year level" }),
   isActive: z.boolean().optional(),
 });
 

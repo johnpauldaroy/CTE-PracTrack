@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { label: "Accounts", href: "/accounts", icon: "Users" },
   { label: "Semesters", href: "/semesters", icon: "Calendar" },
   { label: "Reports", href: "/reports", icon: "BarChart3" },
+  { label: "Resolutions", href: "/resolutions", icon: "ClipboardCheck" },
   { label: "Audit Log", href: "/audit-log", icon: "ScrollText" },
   { label: "Settings", href: "/settings", icon: "Settings" },
 ] satisfies TabItem[];

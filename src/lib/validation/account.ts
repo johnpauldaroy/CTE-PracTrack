@@ -14,7 +14,6 @@ export const editInternAccountSchema = z.object({
 export const createSupervisorSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(150),
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
-  department: z.string().trim().min(1, "Department is required").max(120),
   // A supervisor may cover several schools; a school has at most one supervisor.
   schoolIds: z.array(z.string().min(1)).default([]),
   initialPassword: z.string().min(8, "Password must be at least 8 characters"),
@@ -23,7 +22,6 @@ export const createSupervisorSchema = z.object({
 export const editSupervisorSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(150),
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
-  department: z.string().trim().min(1, "Department is required").max(120),
   schoolIds: z.array(z.string().min(1)).default([]),
 });
 

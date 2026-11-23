@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 import { Label } from "@/components/ui/label";
+import { sectionLabel } from "@/lib/section-label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -38,15 +39,15 @@ export function SectionSelect({
 
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>Section</Label>
-      <Select value={value} onValueChange={(next) => onChange(next ?? "")} items={Object.fromEntries(sections.map((s) => [s.id, s.name]))}>
+      <Label htmlFor={id}>Course, Year &amp; Section</Label>
+      <Select value={value} onValueChange={(next) => onChange(next ?? "")} items={Object.fromEntries(sections.map((s) => [s.id, sectionLabel(s)]))}>
         <SelectTrigger id={id} className="w-full">
-          <SelectValue placeholder="Select a section..." />
+          <SelectValue placeholder="Select course, year & section..." />
         </SelectTrigger>
         <SelectContent>
           {sections.map((section) => (
             <SelectItem key={section.id} value={section.id}>
-              {section.name}
+              {sectionLabel(section)}
             </SelectItem>
           ))}
         </SelectContent>

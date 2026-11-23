@@ -29,10 +29,10 @@ export async function seedAccounts(schoolIdsByName: Record<string, string>) {
   });
 
   const supervisorSeeds = [
-    { name: "Prof. Maria Villanueva", email: "mvillanueva@antiquespride.edu.ph", department: "Language Education", school: "Barbaza National High School" },
-    { name: "Prof. Jose Arcega", email: "jarcega@antiquespride.edu.ph", department: "Science Education", school: "Patria National High School" },
-    { name: "Prof. Ana Malaguit", email: "amalaguit@antiquespride.edu.ph", department: "Social Studies Education", school: "Bitadton National High School" },
-    { name: "Prof. Ramon Casipe", email: "rcasipe@antiquespride.edu.ph", department: "Mathematics Education", school: "Pandan National Vocational School" },
+    { name: "Prof. Maria Villanueva", email: "mvillanueva@antiquespride.edu.ph", school: "Barbaza National High School" },
+    { name: "Prof. Jose Arcega", email: "jarcega@antiquespride.edu.ph", school: "Patria National High School" },
+    { name: "Prof. Ana Malaguit", email: "amalaguit@antiquespride.edu.ph", school: "Bitadton National High School" },
+    { name: "Prof. Ramon Casipe", email: "rcasipe@antiquespride.edu.ph", school: "Pandan National Vocational School" },
   ];
 
   for (const s of supervisorSeeds) {
@@ -44,8 +44,8 @@ export async function seedAccounts(schoolIdsByName: Record<string, string>) {
     });
     const profile = await prisma.supervisorProfile.upsert({
       where: { userId: user.id },
-      update: { department: s.department },
-      create: { userId: user.id, department: s.department },
+      update: {},
+      create: { userId: user.id },
     });
     if (schoolId) {
       await prisma.supervisorSchool.upsert({

@@ -4,6 +4,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { FieldValidationError, ForbiddenError } from "@/lib/session";
 import { scopeToRole } from "@/lib/scope";
 import { syncSupervisorSchools } from "@/lib/services/supervisor-school-service";
+import { softDeleteUser } from "@/lib/services/account-deactivation";
 import type { SessionUser } from "@/lib/auth";
 import type {
   EditInternAccountInput,
@@ -127,13 +128,13 @@ export async function deleteInternAccount(actor: SessionUser, internId: string) 
 
   return prisma.$transaction(async (tx) => {
     const intern = await tx.internProfile.findFirstOrThrow({ where: { id: internId } });
-    const deactivated = await tx.user.update({
-      where: { id: intern.userId },
-      data: { status: "INACTIVE", deletedAt: new Date() },
-    });
+    // A deleted intern frees their cooperating teacher to be paired with someone else.
+    // Their School ID No. is freed too (it stays in the audit entry) so it can be registered again.
+    await tx.internProfile.update({ where: { id: internId }, data: { cooperatingTeacherId: null, schoolNumber: null } });
+    const deactivated = await softDeleteUser(tx, intern.userId);
 
     await writeAuditLog(
-      { actor, action: "INTERN_ACCOUNT_DELETE", entityType: "InternProfile", entityId: internId },
+      { actor, action: "INTERN_ACCOUNT_DELETE", entityType: "InternProfile", entityId: internId, diff: { before: { schoolNumber: intern.schoolNumber } } as Prisma.InputJsonValue },
       tx,
     );
 
@@ -178,7 +179,7 @@ export async function createSupervisor(actor: SessionUser, input: CreateSupervis
         status: "ACTIVE",
         name: input.name,
         emailVerifiedAt: new Date(),
-        supervisorProfile: { create: { department: input.department } },
+        supervisorProfile: { create: {} },
       },
       include: { supervisorProfile: true },
     });
@@ -192,7 +193,7 @@ export async function createSupervisor(actor: SessionUser, input: CreateSupervis
         action: "SUPERVISOR_CREATE",
         entityType: "User",
         entityId: user.id,
-        diff: { after: { name: input.name, email: input.email, department: input.department } },
+        diff: { after: { name: input.name, email: input.email } },
       },
       tx,
     );
@@ -214,10 +215,7 @@ export async function updateSupervisor(actor: SessionUser, supervisorProfileId: 
       where: { id: before.userId },
       data: { name: input.name, email: input.email },
     });
-    const updatedProfile = await tx.supervisorProfile.update({
-      where: { id: supervisorProfileId },
-      data: { department: input.department },
-    });
+    const updatedProfile = before;
 
     await syncSupervisorSchools(
       tx,
@@ -233,8 +231,8 @@ export async function updateSupervisor(actor: SessionUser, supervisorProfileId: 
         entityType: "SupervisorProfile",
         entityId: supervisorProfileId,
         diff: {
-          before: { name: before.user.name, email: before.user.email, department: before.department },
-          after: { name: input.name, email: input.email, department: input.department },
+          before: { name: before.user.name, email: before.user.email },
+          after: { name: input.name, email: input.email },
         } as unknown as Prisma.InputJsonValue,
       },
       tx,
@@ -265,10 +263,7 @@ export async function deleteSupervisor(actor: SessionUser, supervisorProfileId: 
       include: { user: true },
     });
     await syncSupervisorSchools(tx, actor, { profileId: profile.id, userId: profile.userId, name: profile.user.name }, []);
-    const deactivated = await tx.user.update({
-      where: { id: profile.userId },
-      data: { status: "INACTIVE", deletedAt: new Date() },
-    });
+    const deactivated = await softDeleteUser(tx, profile.userId);
 
     await writeAuditLog(
       {

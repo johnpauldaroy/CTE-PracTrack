@@ -8,7 +8,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-const EMPTY = { name: "", email: "", phone: "", department: "", password: "", confirmPassword: "" };
+const EMPTY = { name: "", email: "", phone: "", password: "", confirmPassword: "" };
 
 /** Public sign-up for supervisors / faculty. The CTE office approves it and assigns the school(s). */
 export function SupervisorRegistrationForm() {
@@ -70,7 +70,6 @@ export function SupervisorRegistrationForm() {
       {field("name", "Full Name", { placeholder: "Prof. Juan Dela Cruz" })}
       {field("email", "Email", { type: "email", placeholder: "yourname@antiquespride.edu.ph" })}
       {field("phone", "Phone Number", { placeholder: "0917XXXXXXX" })}
-      {field("department", "Department", { placeholder: "e.g. Language Education" })}
       {field("password", "Password", { minLength: 8, autoComplete: "new-password", placeholder: "At least 8 characters" }, PasswordInput)}
       {field("confirmPassword", "Confirm Password", { autoComplete: "new-password", placeholder: "Re-enter your password" }, PasswordInput)}
       <p className="text-xs text-muted-foreground">

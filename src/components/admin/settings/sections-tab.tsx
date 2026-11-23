@@ -9,9 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { sectionLabel, YEAR_LEVELS, normalizeCourse } from "@/lib/section-label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-const YEAR_LEVELS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -24,7 +23,7 @@ interface SectionRow {
   _count: { interns: number };
 }
 
-/** The class sections interns pick from when they register. A section implies the course and year level. */
+/** The classes interns pick from when they register. Each is Course + Year + Section, e.g. BSED-MATH 4A. */
 export function SectionsTab() {
   const { data, isLoading, mutate } = useSWR<{ sections: SectionRow[] }>("/api/sections", fetcher);
   const [form, setForm] = useState({ name: "", course: "", yearLevel: "" });
@@ -73,25 +72,21 @@ export function SectionsTab() {
       <Card>
         <CardContent className="p-5">
           <p className="mb-4 text-sm text-muted-foreground">
-            Interns choose their section from this list when they register. Deactivate a section to hide it from the list;
-            interns already in it are kept.
+            Interns choose their course, year &amp; section from this list when they register. The same section letter can be
+            used in different courses and years. Deactivate a class to hide it from the list; interns already in it are kept.
           </p>
-          <form onSubmit={add} className="grid gap-3 sm:grid-cols-4 sm:items-end">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sec-name">Section</Label>
-              <Input id="sec-name" required placeholder="BSEd-ENG 4A" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name[0]}</p>}
-            </div>
+          <form onSubmit={add} className="grid gap-3 sm:grid-cols-4 sm:items-start">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="sec-course">Course</Label>
               <Input
                 id="sec-course"
                 required
                 list="sec-course-options"
-                placeholder="BSEd-English"
+                placeholder="BSED-MATH"
                 value={form.course}
                 onChange={(e) => setForm({ ...form, course: e.target.value })}
               />
+              {fieldErrors.course && <p className="text-xs text-destructive">{fieldErrors.course[0]}</p>}
               {/* Courses already used by a section are suggested so the same course is spelled the same way. */}
               <datalist id="sec-course-options">
                 {[...new Set((data?.sections ?? []).map((section) => section.course))].map((course) => (
@@ -116,10 +111,20 @@ export function SectionsTab() {
                 ))}
               </select>
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="sec-name">Section</Label>
+              <Input id="sec-name" required maxLength={10} placeholder="A" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name[0]}</p>}
+            </div>
             <Button type="submit" disabled={saving}>
               <Plus /> {saving ? "Adding…" : "Add"}
             </Button>
           </form>
+          {form.course && form.yearLevel && form.name && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Interns will see: <span className="font-medium text-foreground">{sectionLabel({ course: normalizeCourse(form.course), yearLevel: form.yearLevel, name: form.name.trim().toUpperCase() })}</span>
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -130,9 +135,10 @@ export function SectionsTab() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Section</TableHead>
+                <TableHead>Class</TableHead>
                 <TableHead>Course</TableHead>
                 <TableHead>Year level</TableHead>
+                <TableHead>Section</TableHead>
                 <TableHead>Interns</TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
@@ -140,9 +146,10 @@ export function SectionsTab() {
             <TableBody>
               {data?.sections.map((section) => (
                 <TableRow key={section.id}>
-                  <TableCell className="font-medium">{section.name}</TableCell>
+                  <TableCell className="font-medium">{sectionLabel(section)}</TableCell>
                   <TableCell>{section.course}</TableCell>
                   <TableCell>{section.yearLevel}</TableCell>
+                  <TableCell>{section.name}</TableCell>
                   <TableCell>{section._count.interns}</TableCell>
                   <TableCell className="text-right">
                     <Button variant={section.isActive ? "outline" : "secondary"} size="sm" onClick={() => toggle(section)}>
@@ -153,7 +160,7 @@ export function SectionsTab() {
               ))}
               {data?.sections.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     No sections yet. Interns cannot register until you add at least one.
                   </TableCell>
                 </TableRow>

@@ -19,7 +19,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 interface SupervisorOption {
   id: string;
   name: string;
-  supervisorProfile: { department: string; schools: { schoolId: string }[] } | null;
+  supervisorProfile: { schools: { schoolId: string }[] } | null;
 }
 
 export function SchoolOverviewTab({
@@ -112,7 +112,7 @@ export function SchoolOverviewTab({
           <h3 className="font-semibold">Supervisor Assignment</h3>
           {school.supervisorProfile ? (
             <p className="text-sm text-muted-foreground">
-              {school.supervisorProfile.user.name} · {school.supervisorProfile.department}
+              {school.supervisorProfile.user.name}
             </p>
           ) : (
             <p className="text-sm text-warning font-medium">Not yet assigned</p>

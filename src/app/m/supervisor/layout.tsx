@@ -6,6 +6,7 @@ import { BottomTabBar, type TabItem } from "@/components/mobile/bottom-tab-bar";
 const TABS = [
   { label: "Home", href: "/m/supervisor", icon: "Home" },
   { label: "Interns", href: "/m/supervisor/interns", icon: "Users" },
+  { label: "Teachers", href: "/m/supervisor/teachers", icon: "UserCheck" },
   { label: "Alerts", href: "/m/supervisor/alerts", icon: "AlertTriangle" },
   { label: "Profile", href: "/m/supervisor/profile", icon: "User" },
 ] satisfies TabItem[];

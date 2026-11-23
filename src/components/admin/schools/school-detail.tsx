@@ -74,5 +74,5 @@ export interface SchoolDetailData {
   pmTimeInCutoff: string | null;
   pmTimeOutStart: string | null;
   pmWindowOpensAt: string | null;
-  supervisorProfile: { user: { id: string; name: string }; department: string } | null;
+  supervisorProfile: { user: { id: string; name: string } } | null;
 }

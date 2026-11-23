@@ -133,6 +133,8 @@ enum NotificationType {
   LESSON_PLAN_SUBMITTED
   LESSON_PLAN_APPROVED
   LESSON_PLAN_RETURNED
+  INTERN_CT_PAIRED
+  INTERN_CT_UNPAIRED
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -154,6 +156,8 @@ model User {
   lockedAt        DateTime?
   lockedByUserId  String?
   lockReason      String?
+  // Original email of a soft-deleted account. `email` is rewritten to a tombstone on delete so the address can be reused.
+  deletedEmail    String?
 
   supervisorProfile SupervisorProfile?
   ctProfile         CooperatingTeacherProfile?
@@ -180,7 +184,7 @@ model SupervisorProfile {
   id         String @id @default(cuid())
   userId     String @unique
   user       User   @relation(fields: [userId], references: [id])
-  department String
+  department String? // no longer collected; kept nullable so existing rows and old audit diffs stay valid
 
   // A supervisor may cover several schools; a school has at most one supervisor.
   schools SupervisorSchool[]
@@ -207,7 +211,8 @@ model CooperatingTeacherProfile {
   approvedBy       User?     @relation("CtApprovedBy", fields: [approvedByUserId], references: [id])
   approvedAt       DateTime?
 
-  assignedInterns InternProfile[]   @relation("InternAssignedCt")
+  // 1:1 — one cooperating teacher is paired with at most one intern (InternProfile.cooperatingTeacherId is unique).
+  assignedIntern  InternProfile?    @relation("InternAssignedCt")
   sessions        TeachingSession[]
 
   @@index([schoolId])
@@ -222,7 +227,7 @@ model InternProfile {
   yearLevel            String
   assignedSchoolId     String
   assignedSchool       School                     @relation(fields: [assignedSchoolId], references: [id])
-  cooperatingTeacherId String?
+  cooperatingTeacherId String?                    @unique
   cooperatingTeacher   CooperatingTeacherProfile? @relation("InternAssignedCt", fields: [cooperatingTeacherId], references: [id])
   createdByUserId      String
   createdByUser        User                       @relation("InternCreatedBy", fields: [createdByUserId], references: [id])
@@ -242,20 +247,21 @@ model InternProfile {
 
   @@unique([assignedSchoolId, schoolNumber])
   @@index([assignedSchoolId])
-  @@index([cooperatingTeacherId])
   @@index([enrollmentStatus])
 }
 
 // Admin-managed class sections; a section implies course + year level for new interns.
 model Section {
   id        String   @id @default(cuid())
-  name      String   @unique
+  name      String // the section letter/name only, e.g. "A"; the full label (BSED-MATH 4A) is built by sectionLabel()
   course    String
   yearLevel String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   interns InternProfile[]
+
+  @@unique([course, yearLevel, name])
 }
 
 // Six-digit email verification codes, stored hashed and attempt-limited.

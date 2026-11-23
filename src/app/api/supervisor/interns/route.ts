@@ -6,7 +6,8 @@ import { createIntern } from "@/lib/services/account-service";
 import { listInternsForSchool } from "@/lib/services/intern-service";
 import { getActiveShifting } from "@/lib/services/shifting-service";
 import { ForbiddenError } from "@/lib/session";
-import { assertSchoolInScope } from "@/lib/scope";
+import { assertSchoolInScope, scopeToRole } from "@/lib/scope";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +20,14 @@ export async function GET(request: NextRequest) {
     if (schoolId) assertSchoolInScope(user, schoolId);
     const activeShifting = await getActiveShifting();
     const interns = await listInternsForSchool(user, schoolId, activeShifting?.id ?? null);
+    // The supervisor's own partner school(s), by name (scope comes from the session).
+    const schools = await prisma.school.findMany({
+      where: { ...scopeToRole.school(user), deletedAt: null },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
     return NextResponse.json({
+      schools,
       interns,
       activeShifting: activeShifting
         ? {

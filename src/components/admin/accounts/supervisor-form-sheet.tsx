@@ -15,7 +15,6 @@ type SheetMode = { mode: "add" } | { mode: "edit"; id: string } | null;
 
 interface SupervisorDetail {
   id: string;
-  department: string;
   schools: { schoolId: string }[];
   user: { id: string; name: string; email: string };
 }
@@ -32,7 +31,6 @@ export function SupervisorFormSheet({
   const isEdit = mode?.mode === "edit";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [department, setDepartment] = useState("");
   const [schoolIds, setSchoolIds] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [initialPassword, setInitialPassword] = useState("");
@@ -48,7 +46,6 @@ export function SupervisorFormSheet({
         if (!editing) return;
         setName(editing.user.name);
         setEmail(editing.user.email);
-        setDepartment(editing.department);
         setSchoolIds(editing.schools.map((entry) => entry.schoolId));
         setUserId(editing.user.id);
       },
@@ -60,7 +57,6 @@ export function SupervisorFormSheet({
     if (!open) {
       setName("");
       setEmail("");
-      setDepartment("");
       setSchoolIds([]);
       setUserId(undefined);
       setInitialPassword("");
@@ -78,8 +74,8 @@ export function SupervisorFormSheet({
       const url = isEdit ? `/api/accounts/supervisors/${mode.id}` : "/api/accounts/supervisors";
       const method = isEdit ? "PATCH" : "POST";
       const body = isEdit
-        ? { name, email, department, schoolIds }
-        : { name, email, department, schoolIds, initialPassword };
+        ? { name, email, schoolIds }
+        : { name, email, schoolIds, initialPassword };
 
       const res = await fetch(url, {
         method,
@@ -124,11 +120,6 @@ export function SupervisorFormSheet({
               required
             />
             {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email[0]}</p>}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="sup-dept">Department</Label>
-            <Input id="sup-dept" value={department} onChange={(e) => setDepartment(e.target.value)} required />
           </div>
 
           <div className="flex flex-col gap-2">

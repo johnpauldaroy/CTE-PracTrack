@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { randomInt } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { assertEmailDeliverable } from "@/lib/email-check";
 import { writeAuditLog } from "@/lib/audit";
 import { FieldValidationError } from "@/lib/session";
 import { assertEmailAvailable, sendEmail } from "@/lib/email";
@@ -40,6 +41,7 @@ async function issueCode(userId: string, email: string, name: string) {
  */
 export async function registerIntern(input: InternRegistrationInput) {
   assertEmailAvailable();
+  await assertEmailDeliverable(input.email);
 
   const [existing, section, school] = await Promise.all([
     prisma.user.findUnique({ where: { email: input.email } }),
@@ -56,6 +58,14 @@ export async function registerIntern(input: InternRegistrationInput) {
     !existing.deletedAt;
   const errors: Record<string, string[]> = {};
   if (existing && !resumable) errors.email = ["An account with this email already exists."];
+  if (school) {
+    // One School ID No. per school (a deleted intern's number is freed when the account is deleted).
+    const numberTaken = await prisma.internProfile.findFirst({
+      where: { assignedSchoolId: school.id, schoolNumber: input.schoolNumber, ...(existing ? { NOT: { userId: existing.id } } : {}) },
+      select: { id: true },
+    });
+    if (numberTaken) errors.schoolNumber = ["This School ID No. is already registered at that school."];
+  }
   if (!section) errors.sectionId = ["Select a section from the list"];
   if (!school) errors.schoolId = ["Select a school from the list"];
   if (Object.keys(errors).length) throw new FieldValidationError(errors);
@@ -68,6 +78,7 @@ export async function registerIntern(input: InternRegistrationInput) {
       await tx.internProfile.update({
         where: { userId: existing.id },
         data: {
+          schoolNumber: input.schoolNumber,
           course: section!.course,
           yearLevel: section!.yearLevel,
           sectionId: section!.id,
@@ -95,7 +106,7 @@ export async function registerIntern(input: InternRegistrationInput) {
     const profile = await tx.internProfile.create({
       data: {
         userId: created.id,
-        schoolNumber: null,
+        schoolNumber: input.schoolNumber,
         course: section!.course,
         yearLevel: section!.yearLevel,
         sectionId: section!.id,
@@ -112,7 +123,7 @@ export async function registerIntern(input: InternRegistrationInput) {
         entityType: "InternProfile",
         entityId: profile.id,
         diff: {
-          after: { name: input.name, email: input.email, sectionId: section!.id, schoolId: school!.id },
+          after: { name: input.name, email: input.email, schoolNumber: input.schoolNumber, sectionId: section!.id, schoolId: school!.id },
         } as unknown as Prisma.InputJsonValue,
       },
       tx,
